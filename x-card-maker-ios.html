@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>X Card Maker (iOS)</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>body { font-family: sans-serif; background-color: #000; color: white; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  function App() {
+    
+    const [tweetUrl, setTweetUrl] = (0, import_react3.useState)("");
+    const [isLoading, setIsLoading] = (0, import_react3.useState)(false);
+    const [activeTab, setActiveTab] = (0, import_react3.useState)("edit");
+    const [config, setConfig] = (0, import_react3.useState)({
+      engine: "gemini",
+      targetLang: "ZH-HANT",
+      geminiKey: "",
+      geminiModel: "gemini-1.5-flash",
+      openRouterKey: "",
+      openRouterModel: "xiaomi/mimo-v2-flash:free",
+      displayMode: "bilingual",
+      autoTranslate: false
+      // 新增：自動翻譯開關
+    });
+    (0, import_react3.useEffect)(() => {
+      const savedConfig = {};
+      ["geminiKey", "openRouterKey", "autoTranslate"].forEach((key) => {
+        const val = localStorage.getItem(key);
+        if (val !== null)
+          savedConfig[key] = key === "autoTranslate" ? val === "true" : val;
+      });
+      setConfig((prev) => __spreadValues(__spreadValues({}, prev), savedConfig));
+    }, []);
+    const [tweet, setTweet] = (0, import_react3.useState)({
+      name: "X User",
+      handle: "user",
+      avatar: DEFAULT_AVATAR,
+      content: "Paste a link above to auto-fill, or edit manually.\n\n\u8CBC\u4E0A\u9023\u7D50\u81EA\u52D5\u6293\u53D6\uFF0C\u6216\u624B\u52D5\u7DE8\u8F2F\u6B64\u5361\u7247\u3002",
+      timestamp: (/* @__PURE__ */ new Date()).toLocaleString(),
+      stats: { replies: "12", retweets: "34", likes: "56", views: "1.2K" },
+      image: "",
+      translation: "",
+      aiMode: ""
+    });
+    const cardRef = (0, import_react3.useRef)(null);
+    (0, import_react3.useEffect)(() => {
+      const params = new URLSearchParams(window.location.search);
+      const sharedUrl = params.get("q") || params.get("url") || params.get("text");
+      if (sharedUrl) {
+        const extracted = extractUrl(sharedUrl);
+        if (extracted) {
+          setTweetUrl(extracted);
+          setTimeout(() => handleFetch(extracted), 500);
+        }
+      }
+    }, []);
+    const extractUrl = (text) => {
+      const match = text.match(/https?:\/\/(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/status\/\d+/);
+      return match ? match[0] : null;
+    };
+    const preprocessText = (text) => {
+      if (!text)
+        return "";
+      let processed = text.replace(/\n\s*\n/g, "[[PARAGRAPH]]");
+      processed = processed.replace(/\n/g, " ");
+      processed = processed.replace(/\[\[PARAGRAPH\]\]/g, "\n\n");
+      return processed;
+    };
+    const handleFetch = (urlToFetch) => __async(this, null, function* () {
+      var _a;
+      if (!urlToFetch)
+        return;
+      setIsLoading(true);
+      let extractedHandle = "user";
+      try {
+        const urlObj = new URL(urlToFetch);
+        const pathParts = urlObj.pathname.split("/");
+        if (pathParts.length > 1)
+          extractedHandle = pathParts[1];
+      } catch (e) {
+      }
+      try {
+        const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(urlToFetch)}`;
+        let oembedData = null;
+        const tryFetch = (u) => __async(this, null, function* () {
+          const res = yield fetch(u);
+          if (!res.ok)
+            throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        });
+        try {
+          oembedData = yield Promise.any([
+            tryFetch(`https://api.allorigins.win/get?url=${encodeURIComponent(oembedUrl)}`).then((d) => d.contents ? JSON.parse(d.contents) : Promise.reject()),
+            tryFetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(oembedUrl)}`),
+            tryFetch(`https://corsproxy.io/?${encodeURIComponent(oembedUrl)}`)
+          ]);
+        } catch (e) {
+          console.warn("All content proxies failed");
+        }
+        let avatarBase64 = DEFAULT_AVATAR;
+        try {
+          const avatarUrl = `https://unavatar.io/twitter/${extractedHandle}`;
+          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(avatarUrl)}`;
+          const res = yield fetch(proxyUrl);
+          if (res.ok) {
+            const blob = yield res.blob();
+            avatarBase64 = yield new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch (imgError) {
+          avatarBase64 = `https://unavatar.io/twitter/${extractedHandle}`;
+        }
+        if (oembedData) {
+          const div = document.createElement("div");
+          div.innerHTML = oembedData.html;
+          const textContent = ((_a = div.querySelector("p")) == null ? void 0 : _a.innerText) || "";
+          const newTweetState = __spreadProps(__spreadValues({}, tweet), {
+            // keep current state as base
+            name: oembedData.author_name || tweet.name,
+            handle: extractedHandle,
+            content: textContent || tweet.content,
+            avatar: avatarBase64,
+            timestamp: (/* @__PURE__ */ new Date()).toLocaleString()
+          });
+          setTweet(newTweetState);
+          if (config.autoTranslate && textContent) {
+            triggerAI(textContent, "translate");
+          } else {
+            setActiveTab("preview");
+          }
+        } else {
+          throw new Error("\u7121\u6CD5\u53D6\u5F97\u63A8\u6587\u8CC7\u6599");
+        }
+      } catch (e) {
+        console.error(e);
+        setTweet((prev) => __spreadProps(__spreadValues({}, prev), {
+          handle: extractedHandle,
+          avatar: `https://unavatar.io/twitter/${extractedHandle}?fallback=true`,
+          content: "\u7121\u6CD5\u81EA\u52D5\u6293\u53D6\u5167\u5BB9\uFF0C\u8ACB\u624B\u52D5\u8CBC\u4E0A\u3002"
+        }));
+      } finally {
+        setIsLoading(false);
+        if (!config.autoTranslate)
+          setActiveTab("preview");
+      }
+    });
+    const onFetchClick = () => {
+      const url = extractUrl(tweetUrl);
+      if (url) {
+        setTweetUrl(url);
+        handleFetch(url);
+      } else {
+        alert("\u8ACB\u8F38\u5165\u6709\u6548\u7684 X/Twitter \u9023\u7D50");
+      }
+    };
+    const onPasteAndGo = () => __async(this, null, function* () {
+      try {
+        const text = yield navigator.clipboard.readText();
+        const url = extractUrl(text);
+        if (url) {
+          setTweetUrl(url);
+          handleFetch(url);
+        } else {
+          alert("\u526A\u8CBC\u7C3F\u4E2D\u6C92\u6709\u767C\u73FE X/Twitter \u9023\u7D50");
+        }
+      } catch (err) {
+        alert("\u7121\u6CD5\u8B80\u53D6\u526A\u8CBC\u7C3F\uFF0C\u8ACB\u624B\u52D5\u8CBC\u4E0A\u3002");
+      }
+    });
+    const triggerAI = (textContent, action) => __async(this, null, function* () {
+      var _a, _b, _c, _d, _e, _f, _g, _h;
+      if (!textContent)
+        return;
+      if (config.engine === "gemini" && !config.geminiKey || config.engine === "openrouter" && !config.openRouterKey) {
+        alert("\u8ACB\u5148\u8A2D\u5B9A API Key \u624D\u80FD\u4F7F\u7528\u81EA\u52D5\u7FFB\u8B6F/AI \u529F\u80FD");
+        return;
+      }
+      setIsLoading(true);
+      setTweet((prev) => __spreadProps(__spreadValues({}, prev), { translation: "", aiMode: "\u{1F504} AI \u8655\u7406\u4E2D..." }));
+      try {
+        const text = preprocessText(textContent);
+        let prompt = "";
+        let modeLabel = "";
+        const currentConfig = __spreadValues({}, config);
+        const baseContext = `
+            Context: This is a post from X (Twitter). It may contain internet slang, fan culture terms, gaming terminology, or casual daily language.
+            Task: Translate or rewrite the following text into natural ${currentConfig.targetLang}.
+            Rules:
+            1. **Slang**: Translate "FF" or "FF\u3055\u3093" as "\u63A8\u53CB", "\u4E92\u7C89\u597D\u53CB" (mutuals), or "\u7DB2\u53CB" depending on context. Translate "\u904B\u55B6" as "\u5B98\u65B9" or "\u71DF\u904B\u5718\u968A".
+            2. **Tone**: Keep it natural and native-sounding. Avoid stiff, machine-translated phrasing.
+            3. **Output**: Output ONLY the final text. No explanations, no quotes.
+          `;
+        switch (action) {
+          case "translate":
+            prompt = `${baseContext} Specific Instruction: Translate accurately. Text: ${text}`;
+            modeLabel = `\u2728 AI \u7FFB\u8B6F (${currentConfig.targetLang})`;
+            break;
+          case "rewrite-funny":
+            prompt = `${baseContext} Specific Instruction: Rewrite to be funny/witty. Text: ${text}`;
+            modeLabel = "\u{1F92A} AI \u5E7D\u9ED8\u6539\u5BEB";
+            break;
+          case "rewrite-professional":
+            prompt = `${baseContext} Specific Instruction: Rewrite to be professional/polite. Text: ${text}`;
+            modeLabel = "\u{1F4BC} AI \u5C08\u696D\u6539\u5BEB";
+            break;
+          case "explain":
+            prompt = `Explain the context/slang of this text in simple ${currentConfig.targetLang}. Output ONLY explanation. Text: ${text}`;
+            modeLabel = "\u{1F9D0} AI \u6DF1\u5EA6\u89E3\u6790";
+            break;
+          default:
+            return;
+        }
+        setTweet((prev) => __spreadProps(__spreadValues({}, prev), { aiMode: modeLabel }));
+        let resultText = "";
+        if (currentConfig.engine === "openrouter") {
+          const res = yield fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${currentConfig.openRouterKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": window.location.href,
+              "X-Title": "X Card Maker"
+            },
+            body: JSON.stringify({
+              model: currentConfig.openRouterModel,
+              messages: [{ role: "user", content: prompt }],
+              stream: true
+            })
+          });
+          if (!res.ok)
+            throw new Error(`OpenRouter API Error: ${res.status}`);
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder("utf-8");
+          while (true) {
+            const { done, value } = yield reader.read();
+            if (done)
+              break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n");
+            for (const line of lines) {
+              if (line.startsWith("data: ") && line !== "data: [DONE]") {
+                try {
+                  const json = JSON.parse(line.substring(6));
+                  const content = (_c = (_b = (_a = json.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.delta) == null ? void 0 : _c.content;
+                  if (content) {
+                    resultText += content;
+                    setTweet((prev) => __spreadProps(__spreadValues({}, prev), { translation: resultText }));
+                  }
+                } catch (e) {
+                }
+              }
+            }
+          }
+        } else {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentConfig.geminiModel}:generateContent?key=${currentConfig.geminiKey}`;
+          const res = yield fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          });
+          if (!res.ok)
+            throw new Error(`Gemini API Error: ${res.status}`);
+          const data = yield res.json();
+          resultText = ((_h = (_g = (_f = (_e = (_d = data.candidates) == null ? void 0 : _d[0]) == null ? void 0 : _e.content) == null ? void 0 : _f.parts) == null ? void 0 : _g[0]) == null ? void 0 : _h.text) || "AI \u7121\u6CD5\u751F\u6210\u5167\u5BB9";
+          setTweet((prev) => __spreadProps(__spreadValues({}, prev), { translation: resultText.trim() }));
+        }
+      } catch (e) {
+        alert("AI \u8ACB\u6C42\u5931\u6557: " + e.message);
+        setTweet((prev) => __spreadProps(__spreadValues({}, prev), { translation: "Error: " + e.message }));
+      } finally {
+        setIsLoading(false);
+        setActiveTab("preview");
+      }
+    });
+    const handleAIAction = (action) => triggerAI(tweet.content, action);
+    const downloadImage = () => __async(this, null, function* () {
+      if (!cardRef.current || !window.html2canvas) {
+        alert("\u7D44\u4EF6\u5C1A\u672A\u52A0\u8F09\u5B8C\u6210");
+        return;
+      }
+      try {
+        yield new Promise((r) => setTimeout(r, 500));
+        const canvas = yield window.html2canvas(cardRef.current, {
+          backgroundColor: "#000000",
+          scale: 2,
+          useCORS: true,
+          allowTaint: true
+        });
+        const link = document.createElement("a");
+        link.download = `tweet-${Date.now()}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+      } catch (e) {
+        alert("\u751F\u6210\u5931\u6557 (\u53EF\u80FD\u662F\u5716\u7247\u8DE8\u57DF\u554F\u984C)\u3002");
+      }
+    });
+    const downloadOfflineHTML = () => {
+      const htmlContent = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>X Card Maker (iOS)</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+<script src="https://cdn.tailwindcss.com"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
+<script src="https://unpkg.com/lucide@latest"><\/script>
+<style>body { font-family: sans-serif; background-color: #000; color: white; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  ${App.toString().replace("function App", "function App").replace(/useScript\s*\(.*?\);/g, "")}
+  const DEFAULT_AVATAR = "${DEFAULT_AVATAR}";
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App />);
+<\/script>
+</body>
+</html>`;
+      const blob = new Blob([htmlContent], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "x-card-maker-ios.html";
+      a.click();
+      alert("\u6A94\u6848\u5DF2\u4E0B\u8F09\uFF01\u8ACB\u50B3\u9001\u5230 iPhone \u4F7F\u7528\u3002");
+    };
+    const Editor = () => /* @__PURE__ */ import_react3.default.createElement("div", { className: "p-4 space-y-4 pb-24" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "bg-zinc-900 p-4 rounded-xl border border-zinc-800 space-y-3" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex justify-between items-center" }, /* @__PURE__ */ import_react3.default.createElement("h3", { className: "font-bold text-zinc-400 text-sm" }, "\u{1F4E5} \u81EA\u52D5\u6293\u53D6"), /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ import_react3.default.createElement("label", { className: "text-xs text-zinc-500 flex items-center gap-1 cursor-pointer" }, /* @__PURE__ */ import_react3.default.createElement(
+      "input",
+      {
+        type: "checkbox",
+        checked: config.autoTranslate,
+        onChange: (e) => {
+          setConfig(__spreadProps(__spreadValues({}, config), { autoTranslate: e.target.checked }));
+          localStorage.setItem("autoTranslate", e.target.checked);
+        },
+        className: "accent-blue-500"
+      }
+    ), " \u81EA\u52D5\u7FFB\u8B6F"))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ import_react3.default.createElement("input", { type: "text", placeholder: "\u8CBC\u4E0A\u9023\u7D50...", className: "flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 outline-none", value: tweetUrl, onChange: (e) => setTweetUrl(e.target.value) }), /* @__PURE__ */ import_react3.default.createElement("button", { onClick: onFetchClick, disabled: isLoading, className: "bg-blue-600 text-white p-2 rounded-lg" }, isLoading ? /* @__PURE__ */ import_react3.default.createElement(RefreshCw, { className: "animate-spin", size: 20 }) : /* @__PURE__ */ import_react3.default.createElement(Download, { size: 20 })), /* @__PURE__ */ import_react3.default.createElement("button", { onClick: onPasteAndGo, disabled: isLoading, className: "bg-green-600 text-white p-2 rounded-lg", title: "\u8CBC\u4E0A\u4E26\u6293\u53D6" }, /* @__PURE__ */ import_react3.default.createElement(ClipboardPaste, { size: 20 })))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex gap-3" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "w-16 h-16 shrink-0 relative" }, /* @__PURE__ */ import_react3.default.createElement(
+      "img",
+      {
+        src: tweet.avatar,
+        className: "w-full h-full rounded-full object-cover border border-zinc-700 bg-zinc-800",
+        onError: (e) => {
+          e.target.src = DEFAULT_AVATAR;
+        }
+      }
+    ), /* @__PURE__ */ import_react3.default.createElement("input", { type: "text", className: "absolute -bottom-2 w-full text-[10px] bg-zinc-800 text-center rounded border border-zinc-600 text-white", placeholder: "URL", value: tweet.avatar.startsWith("data:") ? "Base64" : tweet.avatar, onChange: (e) => setTweet(__spreadProps(__spreadValues({}, tweet), { avatar: e.target.value })) })), /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex-1 space-y-2" }, /* @__PURE__ */ import_react3.default.createElement("input", { className: "w-full bg-transparent border-b border-zinc-700 p-1 font-bold text-white", value: tweet.name, onChange: (e) => setTweet(__spreadProps(__spreadValues({}, tweet), { name: e.target.value })), placeholder: "\u540D\u7A31" }), /* @__PURE__ */ import_react3.default.createElement("input", { className: "w-full bg-transparent border-b border-zinc-700 p-1 text-zinc-500", value: tweet.handle, onChange: (e) => setTweet(__spreadProps(__spreadValues({}, tweet), { handle: e.target.value })), placeholder: "@\u5E33\u865F" }))), /* @__PURE__ */ import_react3.default.createElement("textarea", { className: "w-full h-32 bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-lg text-white leading-relaxed outline-none resize-none", value: tweet.content, onChange: (e) => setTweet(__spreadProps(__spreadValues({}, tweet), { content: e.target.value })), placeholder: "\u63A8\u6587\u5167\u5BB9..." }), /* @__PURE__ */ import_react3.default.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ import_react3.default.createElement("button", { onClick: () => handleAIAction("translate"), disabled: isLoading, className: "bg-zinc-800 hover:bg-zinc-700 text-blue-400 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition" }, /* @__PURE__ */ import_react3.default.createElement(Globe, { size: 14 }), " \u7FFB\u8B6F"), /* @__PURE__ */ import_react3.default.createElement("button", { onClick: () => handleAIAction("explain"), disabled: isLoading, className: "bg-zinc-800 hover:bg-zinc-700 text-purple-400 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition" }, /* @__PURE__ */ import_react3.default.createElement(MessageSquareQuote, { size: 14 }), " \u89E3\u6790"), /* @__PURE__ */ import_react3.default.createElement("button", { onClick: () => handleAIAction("rewrite-funny"), disabled: isLoading, className: "bg-zinc-800 hover:bg-zinc-700 text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition" }, /* @__PURE__ */ import_react3.default.createElement(Smile, { size: 14 }), " \u5E7D\u9ED8\u6539\u5BEB"), /* @__PURE__ */ import_react3.default.createElement("button", { onClick: () => handleAIAction("rewrite-professional"), disabled: isLoading, className: "bg-zinc-800 hover:bg-zinc-700 text-green-400 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition" }, /* @__PURE__ */ import_react3.default.createElement(Briefcase, { size: 14 }), " \u5C08\u696D\u6539\u5BEB")), (tweet.translation || config.displayMode === "translationOnly") && /* @__PURE__ */ import_react3.default.createElement("div", { className: "relative" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "absolute top-2 right-2 text-[10px] bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full border border-blue-500/30" }, tweet.aiMode || "AI Output"), /* @__PURE__ */ import_react3.default.createElement("textarea", { className: "w-full h-24 bg-zinc-900/50 border border-zinc-700/50 border-dashed rounded-lg p-3 pt-8 text-blue-400 text-sm", value: tweet.translation, onChange: (e) => setTweet(__spreadProps(__spreadValues({}, tweet), { translation: e.target.value })), placeholder: "AI \u751F\u6210\u7D50\u679C..." })), /* @__PURE__ */ import_react3.default.createElement("input", { type: "text", className: "w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm text-white", placeholder: "\u9644\u5716\u9023\u7D50 (\u9078\u586B)", value: tweet.image, onChange: (e) => setTweet(__spreadProps(__spreadValues({}, tweet), { image: e.target.value })) })));
+    const Preview = () => /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex flex-col items-center pt-8 pb-24 px-4 min-h-screen" }, /* @__PURE__ */ import_react3.default.createElement("div", { ref: cardRef, className: "w-full max-w-[600px] bg-black text-white p-6 border border-zinc-800", style: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' } }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex items-start mb-4" }, /* @__PURE__ */ import_react3.default.createElement(
+      "img",
+      {
+        src: tweet.avatar,
+        className: "w-12 h-12 rounded-full mr-3 object-cover bg-zinc-800",
+        crossOrigin: "anonymous",
+        onError: (e) => {
+          e.target.src = DEFAULT_AVATAR;
+        }
+      }
+    ), /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex flex-col" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "font-bold text-base text-[#e7e9ea] flex items-center gap-1" }, tweet.name, /* @__PURE__ */ import_react3.default.createElement("svg", { viewBox: "0 0 24 24", className: "w-4 h-4 text-blue-400 fill-current" }, /* @__PURE__ */ import_react3.default.createElement("g", null, /* @__PURE__ */ import_react3.default.createElement("path", { d: "M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .495.083.965.238 1.4-1.272.65-2.147 2.02-2.147 3.6 0 1.435.71 2.742 1.802 3.527-.245.548-.387 1.168-.387 1.815 0 2.296 1.77 4.157 3.953 4.157.653 0 1.266-.178 1.802-.487.87 1.254 2.296 2.083 3.93 2.083s3.06-.828 3.93-2.083c.536.31 1.15.487 1.802.487 2.183 0 3.953-1.86 3.953-4.157 0-.647-.142-1.267-.387-1.815 1.092-.785 1.802-2.092 1.802-3.527zM15 9.41l-4.5 4.5L9 12.41l1.41-1.41 1.59 1.58 3.09-3.08 1.41 1.42z" })))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "text-[#71767b] text-sm" }, "@", tweet.handle))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "text-[20px] leading-snug mb-4 whitespace-pre-wrap text-[#e7e9ea]" }, config.displayMode === "translationOnly" && tweet.translation ? tweet.translation : tweet.content), tweet.image && /* @__PURE__ */ import_react3.default.createElement("div", { className: "mb-4 rounded-2xl overflow-hidden border border-zinc-800" }, /* @__PURE__ */ import_react3.default.createElement("img", { src: tweet.image, className: "w-full h-auto block", crossOrigin: "anonymous" })), config.displayMode === "bilingual" && tweet.translation && /* @__PURE__ */ import_react3.default.createElement("div", { className: "mt-4 pt-4 border-t border-dashed border-zinc-800" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "text-xs font-bold text-blue-400 mb-1" }, tweet.aiMode || "\u2728 AI Output"), /* @__PURE__ */ import_react3.default.createElement("div", { className: "text-[18px] leading-snug text-[#e7e9ea] whitespace-pre-wrap" }, tweet.translation)), /* @__PURE__ */ import_react3.default.createElement("div", { className: "py-4 border-b border-zinc-800 text-[#71767b] text-[15px]" }, tweet.timestamp), /* @__PURE__ */ import_react3.default.createElement("div", { className: "py-4 flex gap-6 text-[14px] text-[#71767b]" }, tweet.stats.retweets && /* @__PURE__ */ import_react3.default.createElement("div", null, /* @__PURE__ */ import_react3.default.createElement("span", { className: "font-bold text-[#e7e9ea]" }, tweet.stats.retweets), " Reposts"), tweet.stats.likes && /* @__PURE__ */ import_react3.default.createElement("div", null, /* @__PURE__ */ import_react3.default.createElement("span", { className: "font-bold text-[#e7e9ea]" }, tweet.stats.likes), " Likes"))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "flex flex-col gap-3 w-full max-w-[600px] mt-8" }, /* @__PURE__ */ import_react3.default.createElement("button", { onClick: downloadImage, className: "bg-blue-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-400 transition flex items-center justify-center gap-2" }, /* @__PURE__ */ import_react3.default.createElement(Download, { size: 20 }), " \u4E0B\u8F09\u5716\u7247 (PNG)"), /* @__PURE__ */ import_react3.default.createElement("button", { onClick: downloadOfflineHTML, className: "bg-zinc-800 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-zinc-700 transition flex items-center justify-center gap-2 border border-zinc-700" }, /* @__PURE__ */ import_react3.default.createElement(Share2, { size: 20 }), " \u4E0B\u8F09 iOS \u96E2\u7DDA\u7248 (HTML)")));
+    const SettingsTab = () => /* @__PURE__ */ import_react3.default.createElement("div", { className: "p-4 space-y-6 pb-24" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ import_react3.default.createElement("label", { className: "text-sm font-bold text-zinc-400" }, "\u7FFB\u8B6F\u5F15\u64CE"), /* @__PURE__ */ import_react3.default.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ import_react3.default.createElement("button", { onClick: () => setConfig(__spreadProps(__spreadValues({}, config), { engine: "gemini" })), className: `p-3 rounded-lg border text-sm font-bold ${config.engine === "gemini" ? "bg-blue-500/20 border-blue-500 text-blue-400" : "bg-zinc-900 border-zinc-700 text-zinc-400"}` }, "Gemini (AI)"), /* @__PURE__ */ import_react3.default.createElement("button", { onClick: () => setConfig(__spreadProps(__spreadValues({}, config), { engine: "openrouter" })), className: `p-3 rounded-lg border text-sm font-bold ${config.engine === "openrouter" ? "bg-blue-500/20 border-blue-500 text-blue-400" : "bg-zinc-900 border-zinc-700 text-zinc-400"}` }, "OpenRouter (Free)"))), config.engine === "gemini" && /* @__PURE__ */ import_react3.default.createElement("div", { className: "space-y-2 animate-fade-in" }, /* @__PURE__ */ import_react3.default.createElement("label", { className: "text-sm font-bold text-zinc-400" }, "Gemini API Key"), /* @__PURE__ */ import_react3.default.createElement("input", { type: "password", className: "w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm text-white focus:border-blue-500 outline-none", placeholder: "\u8CBC\u4E0A API Key", value: config.geminiKey, onChange: (e) => {
+      setConfig(__spreadProps(__spreadValues({}, config), { geminiKey: e.target.value }));
+      localStorage.setItem("geminiKey", e.target.value);
+    } }), /* @__PURE__ */ import_react3.default.createElement("a", { href: "https://aistudio.google.com/app/apikey", target: "_blank", className: "text-xs text-blue-400 hover:underline" }, "\u53D6\u5F97\u514D\u8CBB Key \u2192")), config.engine === "openrouter" && /* @__PURE__ */ import_react3.default.createElement("div", { className: "space-y-2 animate-fade-in" }, /* @__PURE__ */ import_react3.default.createElement("label", { className: "text-sm font-bold text-zinc-400" }, "OpenRouter API Key"), /* @__PURE__ */ import_react3.default.createElement("input", { type: "password", className: "w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm text-white focus:border-blue-500 outline-none", placeholder: "sk-or-...", value: config.openRouterKey, onChange: (e) => {
+      setConfig(__spreadProps(__spreadValues({}, config), { openRouterKey: e.target.value }));
+      localStorage.setItem("openRouterKey", e.target.value);
+    } }), /* @__PURE__ */ import_react3.default.createElement("a", { href: "https://openrouter.ai/keys", target: "_blank", className: "text-xs text-blue-400 hover:underline" }, "\u53D6\u5F97 Key \u2192"), /* @__PURE__ */ import_react3.default.createElement("label", { className: "text-sm font-bold text-zinc-400 mt-4 block" }, "Model"), /* @__PURE__ */ import_react3.default.createElement("select", { className: "w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm outline-none text-white", value: config.openRouterModel, onChange: (e) => setConfig(__spreadProps(__spreadValues({}, config), { openRouterModel: e.target.value })) }, /* @__PURE__ */ import_react3.default.createElement("option", { value: "xiaomi/mimo-v2-flash:free" }, "xiaomi/mimo-v2-flash:free"), /* @__PURE__ */ import_react3.default.createElement("option", { value: "google/gemini-2.0-flash-lite-preview-02-05:free" }, "gemini-2.0-flash-lite:free"), /* @__PURE__ */ import_react3.default.createElement("option", { value: "deepseek/deepseek-r1:free" }, "deepseek-r1:free"), /* @__PURE__ */ import_react3.default.createElement("option", { value: "meta-llama/llama-3.3-70b-instruct:free" }, "llama-3.3-70b:free"))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ import_react3.default.createElement("label", { className: "text-sm font-bold text-zinc-400" }, "\u986F\u793A\u6A21\u5F0F"), /* @__PURE__ */ import_react3.default.createElement("select", { className: "w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm outline-none text-white", value: config.displayMode, onChange: (e) => setConfig(__spreadProps(__spreadValues({}, config), { displayMode: e.target.value })) }, /* @__PURE__ */ import_react3.default.createElement("option", { value: "bilingual" }, "\u96D9\u8A9E\u5C0D\u7167 (\u539F\u6587 + AI)"), /* @__PURE__ */ import_react3.default.createElement("option", { value: "translationOnly" }, "\u50C5\u986F\u793A AI \u7D50\u679C"))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ import_react3.default.createElement("label", { className: "text-sm font-bold text-zinc-400" }, "\u76EE\u6A19\u8A9E\u8A00"), /* @__PURE__ */ import_react3.default.createElement("select", { className: "w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm outline-none text-white", value: config.targetLang, onChange: (e) => setConfig(__spreadProps(__spreadValues({}, config), { targetLang: e.target.value })) }, /* @__PURE__ */ import_react3.default.createElement("option", { value: "ZH-HANT" }, "\u7E41\u9AD4\u4E2D\u6587"), /* @__PURE__ */ import_react3.default.createElement("option", { value: "ZH-HANS" }, "\u7C21\u9AD4\u4E2D\u6587"), /* @__PURE__ */ import_react3.default.createElement("option", { value: "EN" }, "English"), /* @__PURE__ */ import_react3.default.createElement("option", { value: "JA" }, "\u65E5\u672C\u8A9E"))));
+    return /* @__PURE__ */ import_react3.default.createElement("div", { className: "min-h-screen bg-black text-white" }, activeTab === "edit" && /* @__PURE__ */ import_react3.default.createElement(Editor, null), activeTab === "preview" && /* @__PURE__ */ import_react3.default.createElement(Preview, null), activeTab === "settings" && /* @__PURE__ */ import_react3.default.createElement(SettingsTab, null), /* @__PURE__ */ import_react3.default.createElement("div", { className: "fixed bottom-0 left-0 w-full bg-zinc-900 border-t border-zinc-800 flex justify-around p-3 pb-6 z-50" }, /* @__PURE__ */ import_react3.default.createElement("button", { onClick: () => setActiveTab("edit"), className: `flex flex-col items-center gap-1 ${activeTab === "edit" ? "text-blue-400" : "text-zinc-500"}` }, /* @__PURE__ */ import_react3.default.createElement(X, { size: 24 }), /* @__PURE__ */ import_react3.default.createElement("span", { className: "text-xs" }, "\u7DE8\u8F2F")), /* @__PURE__ */ import_react3.default.createElement("button", { onClick: () => setActiveTab("preview"), className: `flex flex-col items-center gap-1 ${activeTab === "preview" ? "text-blue-400" : "text-zinc-500"}` }, /* @__PURE__ */ import_react3.default.createElement(Image, { size: 24 }), /* @__PURE__ */ import_react3.default.createElement("span", { className: "text-xs" }, "\u9810\u89BD")), /* @__PURE__ */ import_react3.default.createElement("button", { onClick: () => setActiveTab("settings"), className: `flex flex-col items-center gap-1 ${activeTab === "settings" ? "text-blue-400" : "text-zinc-500"}` }, /* @__PURE__ */ import_react3.default.createElement(Settings, { size: 24 }), /* @__PURE__ */ import_react3.default.createElement("span", { className: "text-xs" }, "\u8A2D\u5B9A"))));
+  }
+  const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23333'%3E%3Crect width='24' height='24' fill='%23333'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23555'/%3E%3C/svg%3E";
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App />);
+</script>
+</body>
+</html>
