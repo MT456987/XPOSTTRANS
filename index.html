@@ -11,11 +11,7 @@
   <meta name="description" content="Create beautiful X/Twitter card images with AI translation">
   
   <link rel="manifest" href="./manifest.json">
-  
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png">
-  <link rel="apple-touch-icon" sizes="167x167" href="./icons/icon-167.png">
   
   <title>X Card Maker</title>
   
@@ -29,83 +25,57 @@
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #000; color: white; overscroll-behavior: none; }
-    body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+    body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
     #root { min-height: 100vh; min-height: 100dvh; }
-    
     .install-banner { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1d4ed8, #7c3aed); padding: 16px 24px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px); animation: slideUp 0.4s ease-out; }
     .install-banner.hidden { display: none; }
     @keyframes slideUp { from { transform: translateX(-50%) translateY(100px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
-    .install-banner button { background: white; color: #1d4ed8; font-weight: 700; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; white-space: nowrap; }
-    .install-banner .close { background: transparent; color: white; padding: 8px; opacity: 0.7; }
-    
-    .ios-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; animation: fadeIn 0.3s ease-out; }
+    .ios-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
     .ios-modal.hidden { display: none; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    .ios-modal-content { background: #18181b; border-radius: 20px; padding: 32px 24px; max-width: 340px; text-align: center; }
-    .ios-modal h3 { font-size: 22px; margin: 0 0 16px 0; }
-    .ios-modal p { color: #a1a1aa; margin: 0 0 24px 0; line-height: 1.6; }
-    .ios-modal .step { display: flex; align-items: center; gap: 12px; background: #27272a; padding: 14px 16px; border-radius: 12px; margin-bottom: 12px; text-align: left; }
-    .ios-modal .step-num { background: #3b82f6; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
-    .ios-modal .step-text { font-size: 14px; }
-    .ios-modal .close-btn { margin-top: 16px; background: #3b82f6; color: white; border: none; padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; width: 100%; }
-    
     .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
     .loading-spinner { width: 48px; height: 48px; border: 4px solid #333; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    
     .tab-content { animation: fadeSlide 0.2s ease-out; }
     @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
   <div id="root"></div>
-  
+
   <div id="install-banner" class="install-banner hidden">
     <div style="flex:1">
       <div style="font-weight:700;font-size:15px;">📲 安裝 X Card Maker</div>
       <div style="font-size:13px;color:#cbd5e1;margin-top:2px;">一鍵安裝到主畫面</div>
     </div>
-    <button id="install-btn">安裝</button>
-    <button class="close" id="install-close">✕</button>
+    <button id="install-btn" class="bg-white text-blue-600 font-bold px-4 py-2 rounded-lg">安裝</button>
+    <button id="install-close" class="text-white/70 px-2">✕</button>
   </div>
-  
+
   <div id="ios-modal" class="ios-modal hidden">
-    <div class="ios-modal-content">
-      <h3>📲 安裝到主畫面</h3>
-      <p>在 Safari 瀏覽器中，請按以下步驟安裝此 App：</p>
-      <div class="step">
-        <span class="step-num">1</span>
-        <span class="step-text">點擊底部 <strong>分享按鈕</strong> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
-      </div>
-      <div class="step">
-        <span class="step-num">2</span>
-        <span class="step-text">向下滑動找到 <strong>「加入主畫面」</strong></span>
-      </div>
-      <div class="step">
-        <span class="step-num">3</span>
-        <span class="step-text">點擊右上角 <strong>「新增」</strong></span>
-      </div>
-      <button class="close-btn" id="ios-modal-close">我知道了</button>
+    <div class="bg-zinc-900 p-8 rounded-2xl max-w-xs text-center border border-zinc-800">
+      <h3 class="text-xl font-bold mb-4">📲 安裝到主畫面</h3>
+      <p class="text-zinc-400 text-sm mb-6">在 Safari 瀏覽器中點擊 <strong>分享按鈕</strong> 並選擇 <strong>「加入主畫面」</strong> 即可安裝。</p>
+      <button id="ios-modal-close" class="w-full bg-blue-600 py-3 rounded-xl font-bold">我知道了</button>
     </div>
   </div>
 
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef } = React;
 
 const icons = {
-  X: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
-  Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>,
-  Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
-  Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-  Share: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
-  RefreshCw: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>,
-  Clipboard: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>,
-  Globe: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
-  MessageSquare: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  Smile: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>,
-  Briefcase: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
-  Smartphone: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>,
-  Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
+  X: () => <lucide.X size={24} />,
+  Image: () => <lucide.Image size={24} />,
+  Settings: () => <lucide.Settings size={24} />,
+  Download: () => <lucide.Download size={20} />,
+  Share: () => <lucide.Share size={20} />,
+  RefreshCw: () => <lucide.RefreshCw size={20} className="animate-spin" />,
+  Clipboard: () => <lucide.Clipboard size={20} />,
+  Globe: () => <lucide.Globe size={14} />,
+  MessageSquare: () => <lucide.MessageSquare size={14} />,
+  Smile: () => <lucide.Smile size={14} />,
+  Briefcase: () => <lucide.Briefcase size={14} />,
+  Smartphone: () => <lucide.Smartphone size={20} />,
+  Check: () => <lucide.Check size={20} />
 };
 
 const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23333'%3E%3Crect width='24' height='24' fill='%23333'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23555'/%3E%3C/svg%3E";
@@ -131,7 +101,7 @@ function App() {
     name: "X User",
     handle: "user",
     avatar: DEFAULT_AVATAR,
-    content: "貼上連結自動抓取，或手動編輯此卡片。",
+    content: "貼上推文連結開始製作卡片。",
     timestamp: new Date().toLocaleString(),
     stats: { replies: "12", retweets: "34", likes: "56", views: "1.2K" },
     image: "",
@@ -142,332 +112,165 @@ function App() {
   const cardRef = useRef(null);
 
   useEffect(() => {
-    const savedConfig = {};
-    ["geminiKey", "openRouterKey", "autoTranslate", "engine", "targetLang", "displayMode"].forEach(key => {
-      const val = localStorage.getItem(key);
-      if (val !== null) {
-        savedConfig[key] = key === "autoTranslate" ? val === "true" : val;
-      }
+    const saved = {};
+    ["geminiKey", "openRouterKey", "autoTranslate", "engine", "targetLang", "displayMode", "openRouterModel"].forEach(k => {
+      const v = localStorage.getItem(k);
+      if (v !== null) saved[k] = k === "autoTranslate" ? v === "true" : v;
     });
-    setConfig(prev => ({ ...prev, ...savedConfig }));
-    
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                         window.navigator.standalone;
-    setIsInstalled(isStandalone);
+    setConfig(prev => ({ ...prev, ...saved }));
+    setIsInstalled(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone);
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const sharedUrl = params.get("q") || params.get("url") || params.get("text");
-    if (sharedUrl) {
-      const extracted = extractUrl(sharedUrl);
-      if (extracted) {
-        setTweetUrl(extracted);
-        setTimeout(() => handleFetch(extracted), 500);
-      }
-    }
-  }, []);
-
-  const extractUrl = (text) => {
-    const match = text.match(/https?:\/\/(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/status\/\d+/);
-    return match ? match[0] : null;
-  };
-
-  const preprocessText = (text) => {
-    if (!text) return "";
-    let processed = text.replace(/\n\s*\n/g, "[[PARAGRAPH]]");
-    processed = processed.replace(/\n/g, " ");
-    processed = processed.replace(/\[\[PARAGRAPH\]\]/g, "\n\n");
-    return processed;
-  };
-
-  const handleFetch = async (urlToFetch) => {
-    if (!urlToFetch) return;
+  const handleFetch = async (url) => {
     setIsLoading(true);
+    let handle = "user";
+    try { handle = new URL(url).pathname.split("/")[1]; } catch(e){}
     
-    let extractedHandle = "user";
     try {
-      const urlObj = new URL(urlToFetch);
-      const pathParts = urlObj.pathname.split("/");
-      if (pathParts.length > 1) extractedHandle = pathParts[1];
-    } catch (e) {}
-
-    try {
-      const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(urlToFetch)}`;
-      let oembedData = null;
+      const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}`;
+      const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(oembedUrl)}`);
+      const data = await res.json();
+      const oembed = JSON.parse(data.contents);
       
-      const tryFetch = async (u) => {
-        const res = await fetch(u);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      };
-
-      try {
-        oembedData = await Promise.any([
-          tryFetch(`https://api.allorigins.win/get?url=${encodeURIComponent(oembedUrl)}`).then(d => d.contents ? JSON.parse(d.contents) : Promise.reject()),
-          tryFetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(oembedUrl)}`),
-          tryFetch(`https://corsproxy.io/?${encodeURIComponent(oembedUrl)}`)
-        ]);
-      } catch (e) { console.warn("Content proxies failed"); }
-
-      let avatarBase64 = DEFAULT_AVATAR;
-      try {
-        const avatarUrl = `https://unavatar.io/twitter/${extractedHandle}`;
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(avatarUrl)}`;
-        const res = await fetch(proxyUrl);
-        if (res.ok) {
-          const blob = await res.blob();
-          avatarBase64 = await new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
-          });
-        }
-      } catch (imgError) { avatarBase64 = `https://unavatar.io/twitter/${extractedHandle}`; }
-
-      if (oembedData) {
-        const div = document.createElement("div");
-        div.innerHTML = oembedData.html;
-        const textContent = div.querySelector("p")?.innerText || "";
-        
-        const newTweetState = {
-          ...tweet,
-          name: oembedData.author_name || tweet.name,
-          handle: extractedHandle,
-          content: textContent || tweet.content,
-          avatar: avatarBase64,
-          timestamp: new Date().toLocaleString()
-        };
-        setTweet(newTweetState);
-        
-        if (config.autoTranslate && textContent) {
-          triggerAI(textContent, "translate");
-        } else { setActiveTab("preview"); }
-      } else { throw new Error("無法取得推文資料"); }
-    } catch (e) {
-      console.error(e);
+      const div = document.createElement("div");
+      div.innerHTML = oembed.html;
+      const text = div.querySelector("p")?.innerText || "";
+      
       setTweet(prev => ({
         ...prev,
-        handle: extractedHandle,
-        avatar: `https://unavatar.io/twitter/${extractedHandle}?fallback=true`,
-        content: "無法自動抓取內容，請手動貼上。"
+        name: oembed.author_name,
+        handle: handle,
+        content: text,
+        avatar: `https://unavatar.io/twitter/${handle}`,
+        timestamp: new Date().toLocaleString()
       }));
-    } finally {
-      setIsLoading(false);
-      if (!config.autoTranslate) setActiveTab("preview");
-    }
+      
+      if (config.autoTranslate) triggerAI(text, "translate");
+      else setActiveTab("preview");
+    } catch (e) { alert("抓取失敗，請檢查網址。"); }
+    finally { setIsLoading(false); }
   };
 
-  const onFetchClick = () => {
-    const url = extractUrl(tweetUrl);
-    if (url) { setTweetUrl(url); handleFetch(url); }
-    else { alert("請輸入有效的 X/Twitter 連結"); }
-  };
-
-  const onPasteAndGo = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const url = extractUrl(text);
-      if (url) { setTweetUrl(url); handleFetch(url); }
-      else { alert("剪貼簿中沒有發現連結"); }
-    } catch (err) { alert("無法讀取剪貼簿，請手動貼上。"); }
-  };
-
-  const triggerAI = async (textContent, action) => {
-    if (!textContent) return;
-    if ((config.engine === "gemini" && !config.geminiKey) || 
-        (config.engine === "openrouter" && !config.openRouterKey)) {
-      alert("請先設定 API Key");
-      return;
-    }
-    
+  const triggerAI = async (text, action) => {
+    if (!text) return;
     setIsLoading(true);
-    setTweet(prev => ({ ...prev, translation: "", aiMode: "🔄 AI 處理中..." }));
+    setTweet(p => ({ ...p, translation: "", aiMode: "🔄 AI 處理中..." }));
     
     try {
-      const text = preprocessText(textContent);
-      let prompt = "";
-      let modeLabel = "";
+      const prompt = `Task: ${action} the following X/Twitter post into ${config.targetLang}. 
+      Context: ${text}
+      Instructions: Be natural, use internet slang appropriately. Output ONLY the result.`;
       
-      const baseContext = `Task: Translate/Rewrite into natural ${config.targetLang}. No explanations.`;
-      
-      switch (action) {
-        case "translate": prompt = `${baseContext} Translate accurately: ${text}`; modeLabel = `✨ AI 翻譯`; break;
-        case "rewrite-funny": prompt = `${baseContext} Rewrite to be funny: ${text}`; modeLabel = "🤪 AI 幽默"; break;
-        case "rewrite-professional": prompt = `${baseContext} Rewrite to be professional: ${text}`; modeLabel = "💼 AI 專業"; break;
-        case "explain": prompt = `Explain context of this text in ${config.targetLang}: ${text}`; modeLabel = "🧐 AI 解析"; break;
-        default: return;
-      }
-      
-      setTweet(prev => ({ ...prev, aiMode: modeLabel }));
-      let resultText = "";
-      
-      if (config.engine === "openrouter") {
-        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${config.openRouterKey}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: config.openRouterModel,
-            messages: [{ role: "user", content: prompt }],
-            stream: true
-          })
-        });
-        
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (line.startsWith("data: ") && line !== "data: [DONE]") {
-              try {
-                const content = JSON.parse(line.substring(6)).choices?.[0]?.delta?.content;
-                if (content) { resultText += content; setTweet(prev => ({ ...prev, translation: resultText })); }
-              } catch (e) {}
-            }
-          }
-        }
-      } else {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=${config.geminiKey}`;
-        const res = await fetch(url, {
+      let result = "";
+      if (config.engine === "gemini") {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=${config.geminiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
         const data = await res.json();
-        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "AI 無法生成內容";
-        setTweet(prev => ({ ...prev, translation: resultText.trim() }));
+        result = data.candidates[0].content.parts[0].text;
+      } else {
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${config.openRouterKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: config.openRouterModel, messages: [{ role: "user", content: prompt }] })
+        });
+        const data = await res.json();
+        result = data.choices[0].message.content;
       }
-    } catch (e) { alert("AI 失敗: " + e.message); }
+      setTweet(p => ({ ...p, translation: result.trim(), aiMode: `✨ AI ${action}` }));
+    } catch (e) { alert("AI 請求出錯"); }
     finally { setIsLoading(false); setActiveTab("preview"); }
   };
 
-  const downloadImage = async () => {
-    if (!cardRef.current) return;
-    setIsLoading(true);
-    try {
-      await new Promise(r => setTimeout(r, 600));
-      const canvas = await window.html2canvas(cardRef.current, { backgroundColor: "#000", scale: 2, useCORS: true });
-      const link = document.createElement("a");
-      link.download = `tweet-${Date.now()}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (e) { alert("生成失敗"); }
-    finally { setIsLoading(false); }
-  };
-
-  const shareImage = async () => {
-    if (!cardRef.current) return;
-    try {
-      const canvas = await window.html2canvas(cardRef.current, { backgroundColor: "#000", scale: 2, useCORS: true });
-      canvas.toBlob(async (blob) => {
-        if (navigator.share) {
-          const file = new File([blob], "tweet.png", { type: "image/png" });
-          await navigator.share({ files: [file], title: "X Card" }).catch(() => downloadImage());
-        } else { downloadImage(); }
-      });
-    } catch (e) { downloadImage(); }
-  };
-
-  const Editor = () => (
-    <div className="p-4 space-y-4 pb-28 tab-content">
-      <div className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 space-y-3">
-        <div className="flex justify-between items-center">
-          <h3 className="font-bold text-zinc-400 text-sm">📥 自動抓取</h3>
-          <label className="text-xs text-zinc-500 flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" checked={config.autoTranslate} onChange={(e) => {
-                setConfig({ ...config, autoTranslate: e.target.checked });
-                localStorage.setItem("autoTranslate", e.target.checked);
-              }} className="accent-blue-500" /> 自動翻譯
-          </label>
-        </div>
-        <div className="flex gap-2">
-          <input type="text" placeholder="貼上連結..." className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white outline-none" value={tweetUrl} onChange={(e) => setTweetUrl(e.target.value)} />
-          <button onClick={onFetchClick} className="bg-blue-600 p-2 rounded-lg"><icons.Download /></button>
-          <button onClick={onPasteAndGo} className="bg-green-600 p-2 rounded-lg"><icons.Clipboard /></button>
-        </div>
-      </div>
-      <div className="space-y-3">
-        <div className="flex gap-3">
-          <div className="w-16 h-16 shrink-0 relative">
-            <img src={tweet.avatar} className="w-full h-full rounded-full object-cover border border-zinc-700 bg-zinc-800" />
-          </div>
-          <div className="flex-1 space-y-2">
-            <input className="w-full bg-transparent border-b border-zinc-700 p-1 font-bold" value={tweet.name} onChange={(e) => setTweet({ ...tweet, name: e.target.value })} placeholder="名稱" />
-            <input className="w-full bg-transparent border-b border-zinc-700 p-1 text-zinc-500" value={tweet.handle} onChange={(e) => setTweet({ ...tweet, handle: e.target.value })} placeholder="@帳號" />
-          </div>
-        </div>
-        <textarea className="w-full h-32 bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-lg outline-none resize-none" value={tweet.content} onChange={(e) => setTweet({ ...tweet, content: e.target.value })} />
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => triggerAI(tweet.content, "translate")} className="bg-zinc-800 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 text-blue-400"><icons.Globe /> 翻譯</button>
-          <button onClick={() => triggerAI(tweet.content, "explain")} className="bg-zinc-800 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 text-purple-400"><icons.MessageSquare /> 解析</button>
-        </div>
-        {tweet.translation && (
-          <textarea className="w-full h-24 bg-zinc-900/50 border border-zinc-700 border-dashed rounded-lg p-3 text-blue-400 text-sm" value={tweet.translation} onChange={(e) => setTweet({ ...tweet, translation: e.target.value })} />
-        )}
-      </div>
-    </div>
-  );
-
-  const Preview = () => (
-    <div className="flex flex-col items-center pt-8 pb-28 px-4 min-h-screen tab-content">
-      <div ref={cardRef} className="w-full max-w-[500px] bg-black text-white p-6 border border-zinc-800">
-        <div className="flex items-start mb-4">
-          <img src={tweet.avatar} className="w-12 h-12 rounded-full mr-3 object-cover" />
-          <div>
-            <div className="font-bold text-base flex items-center gap-1">{tweet.name} <icons.Check className="text-blue-400 w-4 h-4"/></div>
-            <div className="text-zinc-500 text-sm">@{tweet.handle}</div>
-          </div>
-        </div>
-        <div className="text-[19px] mb-4 whitespace-pre-wrap">{config.displayMode === "translationOnly" && tweet.translation ? tweet.translation : tweet.content}</div>
-        {config.displayMode === "bilingual" && tweet.translation && (
-          <div className="mt-4 pt-4 border-t border-dashed border-zinc-800">
-            <div className="text-xs font-bold text-blue-400 mb-1">{tweet.aiMode}</div>
-            <div className="text-[18px] text-zinc-200 whitespace-pre-wrap">{tweet.translation}</div>
-          </div>
-        )}
-        <div className="py-4 border-t border-zinc-900 text-zinc-500 text-sm">{tweet.timestamp}</div>
-      </div>
-      <div className="flex flex-col gap-3 w-full max-w-[500px] mt-8">
-        <button onClick={downloadImage} className="bg-blue-500 py-3 rounded-full font-bold flex items-center justify-center gap-2"><icons.Download /> 下載圖片</button>
-        <button onClick={shareImage} className="bg-zinc-800 py-3 rounded-full font-bold flex items-center justify-center gap-2"><icons.Share /> 分享</button>
-      </div>
-    </div>
-  );
-
-  const SettingsTab = () => (
-    <div className="p-4 space-y-6 pb-28 tab-content">
-      <div className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 space-y-4">
-        <label className="block text-sm font-bold text-zinc-400">翻譯引擎</label>
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => { setConfig({...config, engine:"gemini"}); localStorage.setItem("engine","gemini"); }} className={`p-2 rounded border ${config.engine==='gemini'?'border-blue-500 text-blue-400':'border-zinc-700'}`}>Gemini</button>
-          <button onClick={() => { setConfig({...config, engine:"openrouter"}); localStorage.setItem("engine","openrouter"); }} className={`p-2 rounded border ${config.engine==='openrouter'?'border-blue-500 text-blue-400':'border-zinc-700'}`}>OpenRouter</button>
-        </div>
-        <input type="password" placeholder="API Key" className="w-full bg-black border border-zinc-700 rounded p-3 text-sm" value={config.engine==='gemini'?config.geminiKey:config.openRouterKey} onChange={(e)=>{
-            const key = config.engine==='gemini'?'geminiKey':'openRouterKey';
-            setConfig({...config, [key]: e.target.value});
-            localStorage.setItem(key, e.target.value);
-        }}/>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white font-sans">
       {isLoading && <div className="loading-overlay"><div className="loading-spinner"></div></div>}
-      {activeTab === "edit" && <Editor />}
-      {activeTab === "preview" && <Preview />}
-      {activeTab === "settings" && <SettingsTab />}
-      <div className="fixed bottom-0 left-0 w-full bg-zinc-900 border-t border-zinc-800 flex justify-around p-3 pb-8 z-50">
-        <button onClick={() => setActiveTab("edit")} className={activeTab === "edit" ? "text-blue-400" : "text-zinc-500"}><icons.X /><span className="text-[10px] block">編輯</span></button>
-        <button onClick={() => setActiveTab("preview")} className={activeTab === "preview" ? "text-blue-400" : "text-zinc-500"}><icons.Image /><span className="text-[10px] block">預覽</span></button>
-        <button onClick={() => setActiveTab("settings")} className={activeTab === "settings" ? "text-blue-400" : "text-zinc-500"}><icons.Settings /><span className="text-[10px] block">設定</span></button>
-      </div>
+      
+      {activeTab === "edit" && (
+        <div className="p-4 space-y-6 tab-content pb-32">
+          <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 space-y-4">
+            <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-wider">輸入推文連結</h3>
+            <div className="flex gap-2">
+              <input className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500" placeholder="https://x.com/..." value={tweetUrl} onChange={e=>setTweetUrl(e.target.value)} />
+              <button onClick={()=>handleFetch(tweetUrl)} className="bg-blue-600 p-3 rounded-xl"><icons.Download /></button>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex gap-4 items-center">
+              <img src={tweet.avatar} className="w-16 h-16 rounded-full border border-zinc-800 object-cover" />
+              <div className="flex-1">
+                <input className="w-full bg-transparent border-b border-zinc-800 py-1 font-bold" value={tweet.name} onChange={e=>setTweet({...tweet, name:e.target.value})} />
+                <input className="w-full bg-transparent border-b border-zinc-800 py-1 text-zinc-500 text-sm" value={tweet.handle} onChange={e=>setTweet({...tweet, handle:e.target.value})} />
+              </div>
+            </div>
+            <textarea className="w-full h-40 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-lg outline-none resize-none" value={tweet.content} onChange={e=>setTweet({...tweet, content:e.target.value})} />
+            
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={()=>triggerAI(tweet.content, "translate")} className="bg-zinc-900 p-3 rounded-xl flex items-center justify-center gap-2 text-blue-400 font-bold border border-zinc-800"><icons.Globe /> 翻譯</button>
+              <button onClick={()=>triggerAI(tweet.content, "explain")} className="bg-zinc-900 p-3 rounded-xl flex items-center justify-center gap-2 text-purple-400 font-bold border border-zinc-800"><icons.MessageSquare /> 解析</button>
+              <button onClick={()=>triggerAI(tweet.content, "funny rewrite")} className="bg-zinc-900 p-3 rounded-xl flex items-center justify-center gap-2 text-yellow-400 font-bold border border-zinc-800"><icons.Smile /> 幽默改寫</button>
+              <button onClick={()=>triggerAI(tweet.content, "professional rewrite")} className="bg-zinc-900 p-3 rounded-xl flex items-center justify-center gap-2 text-green-400 font-bold border border-zinc-800"><icons.Briefcase /> 專業改寫</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "preview" && (
+        <div className="p-4 flex flex-col items-center tab-content pb-32">
+          <div ref={cardRef} className="w-full max-w-[500px] bg-black p-6 border border-zinc-800">
+            <div className="flex items-start mb-4">
+              <img src={tweet.avatar} className="w-12 h-12 rounded-full mr-3 object-cover" />
+              <div>
+                <div className="font-bold text-base flex items-center gap-1">{tweet.name} <icons.Check className="text-blue-500 w-4 h-4" /></div>
+                <div className="text-zinc-500 text-sm">@{tweet.handle}</div>
+              </div>
+            </div>
+            <div className="text-[20px] leading-snug mb-4 whitespace-pre-wrap">{config.displayMode === "translationOnly" && tweet.translation ? tweet.translation : tweet.content}</div>
+            {config.displayMode === "bilingual" && tweet.translation && (
+              <div className="mt-4 pt-4 border-t border-dashed border-zinc-800">
+                <div className="text-xs font-bold text-blue-400 mb-1">{tweet.aiMode}</div>
+                <div className="text-[18px] text-zinc-200 whitespace-pre-wrap">{tweet.translation}</div>
+              </div>
+            )}
+            <div className="py-4 border-t border-zinc-900 text-zinc-500 text-sm">{tweet.timestamp}</div>
+            <div className="flex gap-4 text-zinc-500 text-sm pt-2">
+              <span><strong>{tweet.stats.retweets}</strong> Reposts</span>
+              <span><strong>{tweet.stats.likes}</strong> Likes</span>
+            </div>
+          </div>
+          <div className="w-full max-w-[500px] mt-8 space-y-3">
+            <button onClick={async ()=>{
+              const canvas = await html2canvas(cardRef.current, { backgroundColor: "#000", scale: 2 });
+              const link = document.createElement("a"); link.download="x-card.png"; link.href=canvas.toDataURL(); link.click();
+            }} className="w-full bg-blue-600 py-4 rounded-full font-bold flex items-center justify-center gap-2"><icons.Download /> 下載 PNG</button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "settings" && (
+        <div className="p-4 space-y-6 tab-content pb-32">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 space-y-4">
+            <label className="block text-sm font-bold text-zinc-500">翻譯引擎</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={()=>{setConfig({...config, engine:"gemini"}); localStorage.setItem("engine","gemini")}} className={`p-3 rounded-xl border font-bold ${config.engine==='gemini'?'border-blue-500 text-blue-400 bg-blue-500/10':'border-zinc-700'}`}>Gemini</button>
+              <button onClick={()=>{setConfig({...config, engine:"openrouter"}); localStorage.setItem("engine","openrouter")}} className={`p-3 rounded-xl border font-bold ${config.engine==='openrouter'?'border-blue-500 text-blue-400 bg-blue-500/10':'border-zinc-700'}`}>OpenRouter</button>
+            </div>
+            <input type="password" placeholder="API Key" className="w-full bg-black border border-zinc-700 rounded-xl p-3 text-sm" value={config.engine==='gemini'?config.geminiKey:config.openRouterKey} onChange={e=>{
+              const k = config.engine==='gemini'?'geminiKey':'openRouterKey';
+              setConfig({...config, [k]: e.target.value}); localStorage.setItem(k, e.target.value);
+            }} />
+          </div>
+        </div>
+      )}
+
+      <nav className="fixed bottom-0 w-full bg-zinc-900/80 backdrop-blur-lg border-t border-zinc-800 flex justify-around p-4 pb-10 z-50">
+        <button onClick={()=>setActiveTab("edit")} className={activeTab==="edit"?"text-blue-500":"text-zinc-500"}><icons.X /><span className="text-[10px] block mt-1">編輯</span></button>
+        <button onClick={()=>setActiveTab("preview")} className={activeTab==="preview"?"text-blue-500":"text-zinc-500"}><icons.Image /><span className="text-[10px] block mt-1">預覽</span></button>
+        <button onClick={()=>setActiveTab("settings")} className={activeTab==="settings"?"text-blue-500":"text-zinc-500"}><icons.Settings /><span className="text-[10px] block mt-1">設定</span></button>
+      </nav>
     </div>
   );
 }
@@ -475,16 +278,12 @@ function App() {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
 
-// PWA 註冊邏輯
+// PWA Logic with relative path fix
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // 關鍵修正：確保註冊路徑相對於 GitHub Pages 子資料夾
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('SW registered'))
-      .catch(err => console.log('SW failed', err));
+    navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW Registered')).catch(err => console.log('SW Failed', err));
   });
 }
 </script>
 </body>
 </html>
-
