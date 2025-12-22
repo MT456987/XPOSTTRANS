@@ -1,8 +1,8 @@
-const CACHE_NAME = 'x-card-maker-v2.1'; // 提升版本號以強迫瀏覽器更新
+const CACHE_NAME = 'x-card-maker-v2.4'; // 提升版本號以強迫瀏覽器更新快取
 const STATIC_ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
+  './',               // 相對於當前目錄
+  './index.html',     // 相對於當前目錄
+  './manifest.json',  // 相對於當前目錄
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
@@ -16,7 +16,7 @@ const CDN_ASSETS = [
   'https://unpkg.com/lucide@latest'
 ];
 
-// Install event - cache static assets
+// Install event - 快取本地與 CDN 資源
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -41,7 +41,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - 清理舊版快取
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -58,7 +58,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - 優先從快取讀取，失敗則走網路
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -88,6 +88,7 @@ self.addEventListener('fetch', (event) => {
 
       return fetch(request)
         .then((networkResponse) => {
+          // 僅快取成功的回應
           if (!networkResponse || networkResponse.status !== 200) {
             return networkResponse;
           }
@@ -104,9 +105,9 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // 關鍵修正：離線導航時回退至當前目錄下的 index.html
+          // 關鍵修正：離線導航或載入失敗時回退至子目錄下的 index.html
           if (request.mode === 'navigate') {
-            return caches.match('./index.html');
+            return caches.match('./index.html'); // 確保指向 ./index.html
           }
           return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
         });
@@ -114,7 +115,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Handle messages from the main app
+// 處理來自 App 的跳過等待訊息
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
