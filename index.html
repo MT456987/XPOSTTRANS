@@ -6,210 +6,896 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="X Card Maker">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Create beautiful X/Twitter card images with AI translation">
+  
+  <!-- PWA Manifest -->
   <link rel="manifest" href="/XPOSTTRANS/manifest.json">
+  
+  <!-- iOS Icons -->
   <link rel="apple-touch-icon" href="/XPOSTTRANS/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/XPOSTTRANS/icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/XPOSTTRANS/icons/icon-180.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="/XPOSTTRANS/icons/icon-167.png">
+  
+  <!-- Splash Screens for iOS -->
+  <meta name="apple-mobile-web-app-title" content="X Card">
+  
   <title>X Card Maker</title>
   
+  <!-- External Dependencies -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #000; color: white; overscroll-behavior: none; }
-    #root { min-height: 100dvh; }
-    .loading-spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
+    html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #000; color: white; overscroll-behavior: none; }
+    body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+    #root { min-height: 100vh; min-height: 100dvh; }
+    
+    /* Install Banner Styles */
+    .install-banner { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1d4ed8, #7c3aed); padding: 16px 24px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px); animation: slideUp 0.4s ease-out; }
+    .install-banner.hidden { display: none; }
+    @keyframes slideUp { from { transform: translateX(-50%) translateY(100px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+    .install-banner button { background: white; color: #1d4ed8; font-weight: 700; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; white-space: nowrap; }
+    .install-banner .close { background: transparent; color: white; padding: 8px; opacity: 0.7; }
+    
+    /* iOS Install Instructions Modal */
+    .ios-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; animation: fadeIn 0.3s ease-out; }
+    .ios-modal.hidden { display: none; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .ios-modal-content { background: #18181b; border-radius: 20px; padding: 32px 24px; max-width: 340px; text-align: center; }
+    .ios-modal h3 { font-size: 22px; margin: 0 0 16px 0; }
+    .ios-modal p { color: #a1a1aa; margin: 0 0 24px 0; line-height: 1.6; }
+    .ios-modal .step { display: flex; align-items: center; gap: 12px; background: #27272a; padding: 14px 16px; border-radius: 12px; margin-bottom: 12px; text-align: left; }
+    .ios-modal .step-num { background: #3b82f6; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+    .ios-modal .step-text { font-size: 14px; }
+    .ios-modal .close-btn { margin-top: 16px; background: #3b82f6; color: white; border: none; padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; width: 100%; }
+    
+    /* Loading overlay */
+    .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
+    .loading-spinner { width: 48px; height: 48px; border: 4px solid #333; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    #tweet-card-content { background-color: black; color: white; }
+    
+    /* Tab transitions */
+    .tab-content { animation: fadeSlide 0.2s ease-out; }
+    @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
   <div id="root"></div>
+  
+  <!-- Install Banner (injected by JS) -->
+  <div id="install-banner" class="install-banner hidden">
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:15px;">📲 安裝 X Card Maker</div>
+      <div style="font-size:13px;color:#cbd5e1;margin-top:2px;">一鍵安裝到主畫面</div>
+    </div>
+    <button id="install-btn">安裝</button>
+    <button class="close" id="install-close">✕</button>
+  </div>
+  
+  <!-- iOS Install Modal -->
+  <div id="ios-modal" class="ios-modal hidden">
+    <div class="ios-modal-content">
+      <h3>📲 安裝到主畫面</h3>
+      <p>在 Safari 瀏覽器中，請按以下步驟安裝此 App：</p>
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-text">點擊底部 <strong>分享按鈕</strong> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-text">向下滑動找到 <strong>「加入主畫面」</strong></span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-text">點擊右上角 <strong>「新增」</strong></span>
+      </div>
+      <button class="close-btn" id="ios-modal-close">我知道了</button>
+    </div>
+  </div>
 
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
+
+// Icons from Lucide
+const icons = {
+  X: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+  Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>,
+  Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+  Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  Share: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
+  RefreshCw: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>,
+  Clipboard: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>,
+  Globe: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+  MessageSquare: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  Smile: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>,
+  Briefcase: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+  Smartphone: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>,
+  Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
+};
+
+const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23333'%3E%3Crect width='24' height='24' fill='%23333'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23555'/%3E%3C/svg%3E";
 
 function App() {
-  const [activeTab, setActiveTab] = useState("edit");
-  const [isLoading, setIsLoading] = useState(false);
   const [tweetUrl, setTweetUrl] = useState("");
-  const [showQRCode, setShowQRCode] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("edit");
+  const [isInstalled, setIsInstalled] = useState(false);
   
   const [config, setConfig] = useState({
     engine: "gemini",
     targetLang: "ZH-HANT",
-    geminiKey: localStorage.getItem("geminiKey") || "",
+    geminiKey: "",
     geminiModel: "gemini-2.0-flash",
-    openRouterKey: localStorage.getItem("openRouterKey") || "",
+    openRouterKey: "",
     openRouterModel: "xiaomi/mimo-v2-flash:free",
     displayMode: "bilingual",
     autoTranslate: false
   });
   
   const [tweet, setTweet] = useState({
-    name: "X User", handle: "user", avatar: "", content: "請輸入連結抓取推文內容...", 
-    timestamp: new Date().toLocaleString(), stats: { retweets: "0", likes: "0" }, 
-    translation: "", aiMode: "", originalUrl: ""
+    name: "X User",
+    handle: "user",
+    avatar: DEFAULT_AVATAR,
+    content: "Paste a link above to auto-fill, or edit manually.\n\n貼上連結自動抓取，或手動編輯此卡片。",
+    timestamp: new Date().toLocaleString(),
+    stats: { replies: "12", retweets: "34", likes: "56", views: "1.2K" },
+    image: "",
+    translation: "",
+    aiMode: ""
   });
-
+  
   const cardRef = useRef(null);
-  const qrcodeContainer = useRef(null);
 
+  // Load saved config from localStorage
   useEffect(() => {
-    if (activeTab === "preview" && qrcodeContainer.current && tweet.originalUrl) {
-      qrcodeContainer.current.innerHTML = "";
-      new QRCode(qrcodeContainer.current, {
-        text: tweet.originalUrl,
-        width: 60,
-        height: 60,
-        colorDark : "#ffffff",
-        colorLight : "#000000",
-        correctLevel : QRCode.CorrectLevel.H
-      });
-    }
-  }, [activeTab, tweet.originalUrl, showQRCode]);
+    const savedConfig = {};
+    ["geminiKey", "openRouterKey", "autoTranslate", "engine", "targetLang", "displayMode"].forEach(key => {
+      const val = localStorage.getItem(key);
+      if (val !== null) {
+        savedConfig[key] = key === "autoTranslate" ? val === "true" : val;
+      }
+    });
+    setConfig(prev => ({ ...prev, ...savedConfig }));
+    
+    // Check if running in standalone mode (installed)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                         window.navigator.standalone || 
+                         document.referrer.includes('android-app://');
+    setIsInstalled(isStandalone);
+  }, []);
 
-  const handleFetch = async (url) => {
-    if (!url) return;
+  // Handle shared URL from other apps
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedUrl = params.get("q") || params.get("url") || params.get("text");
+    if (sharedUrl) {
+      const extracted = extractUrl(sharedUrl);
+      if (extracted) {
+        setTweetUrl(extracted);
+        setTimeout(() => handleFetch(extracted), 500);
+      }
+    }
+  }, []);
+
+  const extractUrl = (text) => {
+    const match = text.match(/https?:\/\/(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/status\/\d+/);
+    return match ? match[0] : null;
+  };
+
+  const preprocessText = (text) => {
+    if (!text) return "";
+    let processed = text.replace(/\n\s*\n/g, "[[PARAGRAPH]]");
+    processed = processed.replace(/\n/g, " ");
+    processed = processed.replace(/\[\[PARAGRAPH\]\]/g, "\n\n");
+    return processed;
+  };
+
+  const handleFetch = async (urlToFetch) => {
+    if (!urlToFetch) return;
     setIsLoading(true);
+    
+    let extractedHandle = "user";
     try {
-      const handle = url.split("/")[3];
-      const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://publish.twitter.com/oembed?url=${url}`)}`);
-      const data = await res.json();
-      const oembed = JSON.parse(data.contents);
+      const urlObj = new URL(urlToFetch);
+      const pathParts = urlObj.pathname.split("/");
+      if (pathParts.length > 1) extractedHandle = pathParts[1];
+    } catch (e) {}
+
+    try {
+      const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(urlToFetch)}`;
+      let oembedData = null;
       
-      const div = document.createElement("div");
-      div.innerHTML = oembed.html;
-      
+      const tryFetch = async (u) => {
+        const res = await fetch(u);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      };
+
+      try {
+        oembedData = await Promise.any([
+          tryFetch(`https://api.allorigins.win/get?url=${encodeURIComponent(oembedUrl)}`).then(d => d.contents ? JSON.parse(d.contents) : Promise.reject()),
+          tryFetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(oembedUrl)}`),
+          tryFetch(`https://corsproxy.io/?${encodeURIComponent(oembedUrl)}`)
+        ]);
+      } catch (e) {
+        console.warn("All content proxies failed");
+      }
+
+      let avatarBase64 = DEFAULT_AVATAR;
+      try {
+        const avatarUrl = `https://unavatar.io/twitter/${extractedHandle}`;
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(avatarUrl)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          avatarBase64 = await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (imgError) {
+        avatarBase64 = `https://unavatar.io/twitter/${extractedHandle}`;
+      }
+
+      if (oembedData) {
+        const div = document.createElement("div");
+        div.innerHTML = oembedData.html;
+        const textContent = div.querySelector("p")?.innerText || "";
+        
+        const newTweetState = {
+          ...tweet,
+          name: oembedData.author_name || tweet.name,
+          handle: extractedHandle,
+          content: textContent || tweet.content,
+          avatar: avatarBase64,
+          timestamp: new Date().toLocaleString()
+        };
+        setTweet(newTweetState);
+        
+        if (config.autoTranslate && textContent) {
+          triggerAI(textContent, "translate");
+        } else {
+          setActiveTab("preview");
+        }
+      } else {
+        throw new Error("無法取得推文資料");
+      }
+    } catch (e) {
+      console.error(e);
       setTweet(prev => ({
         ...prev,
-        name: oembed.author_name,
-        handle: handle,
-        content: div.querySelector("p")?.innerText || "",
-        avatar: `https://unavatar.io/twitter/${handle}`,
-        timestamp: new Date().toLocaleString(),
-        originalUrl: url
+        handle: extractedHandle,
+        avatar: `https://unavatar.io/twitter/${extractedHandle}?fallback=true`,
+        content: "無法自動抓取內容，請手動貼上。"
       }));
-      setActiveTab("preview");
-    } catch (e) { alert("抓取失敗"); }
-    finally { setIsLoading(false); }
+    } finally {
+      setIsLoading(false);
+      if (!config.autoTranslate) setActiveTab("preview");
+    }
   };
 
-  const triggerAI = async (text, action) => {
-    // 保留原本的 AI 邏輯
+  const onFetchClick = () => {
+    const url = extractUrl(tweetUrl);
+    if (url) {
+      setTweetUrl(url);
+      handleFetch(url);
+    } else {
+      alert("請輸入有效的 X/Twitter 連結");
+    }
   };
 
-  const downloadCard = async () => {
-    setIsLoading(true);
+  const onPasteAndGo = async () => {
     try {
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: "#000",
+      const text = await navigator.clipboard.readText();
+      const url = extractUrl(text);
+      if (url) {
+        setTweetUrl(url);
+        handleFetch(url);
+      } else {
+        alert("剪貼簿中沒有發現 X/Twitter 連結");
+      }
+    } catch (err) {
+      alert("無法讀取剪貼簿，請手動貼上。");
+    }
+  };
+
+  const triggerAI = async (textContent, action) => {
+    if (!textContent) return;
+    
+    if ((config.engine === "gemini" && !config.geminiKey) || 
+        (config.engine === "openrouter" && !config.openRouterKey)) {
+      alert("請先設定 API Key 才能使用自動翻譯/AI 功能");
+      return;
+    }
+    
+    setIsLoading(true);
+    setTweet(prev => ({ ...prev, translation: "", aiMode: "🔄 AI 處理中..." }));
+    
+    try {
+      const text = preprocessText(textContent);
+      let prompt = "";
+      let modeLabel = "";
+      
+      const baseContext = `
+        Context: This is a post from X (Twitter). It may contain internet slang, fan culture terms, gaming terminology, or casual daily language.
+        Task: Translate or rewrite the following text into natural ${config.targetLang}.
+        Rules:
+        1. **Slang**: Translate "FF" or "FFさん" as "推友", "互粉好友" (mutuals), or "網友" depending on context. Translate "運営" as "官方" or "營運團隊".
+        2. **Tone**: Keep it natural and native-sounding. Avoid stiff, machine-translated phrasing.
+        3. **Output**: Output ONLY the final text. No explanations, no quotes.
+      `;
+      
+      switch (action) {
+        case "translate":
+          prompt = `${baseContext} Specific Instruction: Translate accurately. Text: ${text}`;
+          modeLabel = `✨ AI 翻譯 (${config.targetLang})`;
+          break;
+        case "rewrite-funny":
+          prompt = `${baseContext} Specific Instruction: Rewrite to be funny/witty. Text: ${text}`;
+          modeLabel = "🤪 AI 幽默改寫";
+          break;
+        case "rewrite-professional":
+          prompt = `${baseContext} Specific Instruction: Rewrite to be professional/polite. Text: ${text}`;
+          modeLabel = "💼 AI 專業改寫";
+          break;
+        case "explain":
+          prompt = `Explain the context/slang of this text in simple ${config.targetLang}. Output ONLY explanation. Text: ${text}`;
+          modeLabel = "🧐 AI 深度解析";
+          break;
+        default:
+          return;
+      }
+      
+      setTweet(prev => ({ ...prev, aiMode: modeLabel }));
+      let resultText = "";
+      
+      if (config.engine === "openrouter") {
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${config.openRouterKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": window.location.href,
+            "X-Title": "X Card Maker"
+          },
+          body: JSON.stringify({
+            model: config.openRouterModel,
+            messages: [{ role: "user", content: prompt }],
+            stream: true
+          })
+        });
+        
+        if (!res.ok) throw new Error(`OpenRouter API Error: ${res.status}`);
+        
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+          
+          for (const line of lines) {
+            if (line.startsWith("data: ") && line !== "data: [DONE]") {
+              try {
+                const json = JSON.parse(line.substring(6));
+                const content = json.choices?.[0]?.delta?.content;
+                if (content) {
+                  resultText += content;
+                  setTweet(prev => ({ ...prev, translation: resultText }));
+                }
+              } catch (e) {}
+            }
+          }
+        }
+      } else {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=${config.geminiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        
+        if (!res.ok) throw new Error(`Gemini API Error: ${res.status}`);
+        
+        const data = await res.json();
+        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "AI 無法生成內容";
+        setTweet(prev => ({ ...prev, translation: resultText.trim() }));
+      }
+    } catch (e) {
+      alert("AI 請求失敗: " + e.message);
+      setTweet(prev => ({ ...prev, translation: "Error: " + e.message }));
+    } finally {
+      setIsLoading(false);
+      setActiveTab("preview");
+    }
+  };
+
+  const handleAIAction = (action) => triggerAI(tweet.content, action);
+
+  const downloadImage = async () => {
+    if (!cardRef.current || !window.html2canvas) {
+      alert("組件尚未加載完成");
+      return;
+    }
+    
+    try {
+      await new Promise(r => setTimeout(r, 500));
+      const canvas = await window.html2canvas(cardRef.current, {
+        backgroundColor: "#000000",
         scale: 2,
-        useCORS: true
+        useCORS: true,
+        allowTaint: true
       });
+      
       const link = document.createElement("a");
-      link.download = `X-Card.png`;
+      link.download = `tweet-${Date.now()}.png`;
       link.href = canvas.toDataURL();
       link.click();
-    } catch (e) { alert("圖片生成失敗"); }
-    finally { setIsLoading(false); }
+    } catch (e) {
+      alert("生成失敗 (可能是圖片跨域問題)。");
+    }
   };
 
-  return (
-    <div className="flex flex-col min-h-screen">
-      {isLoading && <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center"><div className="loading-spinner"></div></div>}
+  const shareImage = async () => {
+    if (!cardRef.current || !window.html2canvas) {
+      alert("組件尚未加載完成");
+      return;
+    }
+    
+    try {
+      await new Promise(r => setTimeout(r, 500));
+      const canvas = await window.html2canvas(cardRef.current, {
+        backgroundColor: "#000000",
+        scale: 2,
+        useCORS: true,
+        allowTaint: true
+      });
       
-      <main className="flex-1 pb-24">
-        {activeTab === "edit" && (
-          <div className="p-4 space-y-6">
-             <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 space-y-4">
-                <h3 className="text-zinc-500 text-xs font-bold uppercase">輸入推文連結</h3>
-                <div className="flex gap-2">
-                  <input className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-2 text-sm" placeholder="https://x.com/..." value={tweetUrl} onChange={e=>setTweetUrl(e.target.value)} />
-                  <button onClick={()=>handleFetch(tweetUrl)} className="bg-blue-600 p-3 rounded-xl">抓取</button>
-                </div>
-             </div>
-             
-             <div className="flex items-center justify-between bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
-                <span className="text-sm">顯示推文 QR Code</span>
-                <input type="checkbox" checked={showQRCode} onChange={e=>setShowQRCode(e.target.checked)} className="w-5 h-5" />
-             </div>
+      canvas.toBlob(async (blob) => {
+        if (navigator.share && navigator.canShare) {
+          const file = new File([blob], "tweet-card.png", { type: "image/png" });
+          try {
+            await navigator.share({
+              files: [file],
+              title: "X Card",
+              text: `@${tweet.handle}`
+            });
+          } catch (e) {
+            // User cancelled or error
+            downloadImage();
+          }
+        } else {
+          downloadImage();
+        }
+      }, "image/png");
+    } catch (e) {
+      alert("分享失敗，已改為下載。");
+      downloadImage();
+    }
+  };
 
-             <div className="space-y-4">
-                <textarea className="w-full h-40 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-lg" value={tweet.content} onChange={e=>setTweet({...tweet, content:e.target.value})} />
-                <div className="grid grid-cols-2 gap-2">
-                   <button onClick={()=>triggerAI(tweet.content, "translate")} className="bg-zinc-800 p-3 rounded-xl text-blue-400 font-bold border border-zinc-700">AI 翻譯</button>
-                   <button onClick={()=>triggerAI(tweet.content, "explain")} className="bg-zinc-800 p-3 rounded-xl text-purple-400 font-bold border border-zinc-700">AI 解析</button>
-                </div>
-             </div>
+  // Editor Tab Component
+  const Editor = () => (
+    <div className="p-4 space-y-4 pb-28 tab-content">
+      <div className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 space-y-3">
+        <div className="flex justify-between items-center">
+          <h3 className="font-bold text-zinc-400 text-sm">📥 自動抓取</h3>
+          <label className="text-xs text-zinc-500 flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.autoTranslate}
+              onChange={(e) => {
+                setConfig({ ...config, autoTranslate: e.target.checked });
+                localStorage.setItem("autoTranslate", e.target.checked);
+              }}
+              className="accent-blue-500"
+            />
+            自動翻譯
+          </label>
+        </div>
+        
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="貼上連結..."
+            className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+            value={tweetUrl}
+            onChange={(e) => setTweetUrl(e.target.value)}
+          />
+          <button onClick={onFetchClick} disabled={isLoading} className="bg-blue-600 text-white p-2 rounded-lg">
+            {isLoading ? <icons.RefreshCw /> : <icons.Download />}
+          </button>
+          <button onClick={onPasteAndGo} disabled={isLoading} className="bg-green-600 text-white p-2 rounded-lg" title="貼上並抓取">
+            <icons.Clipboard />
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex gap-3">
+          <div className="w-16 h-16 shrink-0 relative">
+            <img
+              src={tweet.avatar}
+              className="w-full h-full rounded-full object-cover border border-zinc-700 bg-zinc-800"
+              onError={(e) => { e.target.src = DEFAULT_AVATAR; }}
+            />
+            <input
+              type="text"
+              className="absolute -bottom-2 w-full text-[10px] bg-zinc-800 text-center rounded border border-zinc-600 text-white"
+              placeholder="URL"
+              value={tweet.avatar.startsWith("data:") ? "Base64" : tweet.avatar}
+              onChange={(e) => setTweet({ ...tweet, avatar: e.target.value })}
+            />
           </div>
-        )}
+          <div className="flex-1 space-y-2">
+            <input
+              className="w-full bg-transparent border-b border-zinc-700 p-1 font-bold text-white"
+              value={tweet.name}
+              onChange={(e) => setTweet({ ...tweet, name: e.target.value })}
+              placeholder="名稱"
+            />
+            <input
+              className="w-full bg-transparent border-b border-zinc-700 p-1 text-zinc-500"
+              value={tweet.handle}
+              onChange={(e) => setTweet({ ...tweet, handle: e.target.value })}
+              placeholder="@帳號"
+            />
+          </div>
+        </div>
 
-        {activeTab === "preview" && (
-          <div className="p-4 flex flex-col items-center">
-            <div ref={cardRef} className="relative w-full max-w-md bg-black border border-zinc-800 p-6">
-              <div className="flex items-start mb-4">
-                <img src={tweet.avatar} crossOrigin="anonymous" className="w-12 h-12 rounded-full mr-3" />
-                <div>
-                  <div className="font-bold flex items-center gap-1">{tweet.name}</div>
-                  <div className="text-zinc-500 text-sm">@{tweet.handle}</div>
-                </div>
-              </div>
-              <div className="text-xl leading-relaxed mb-4">{tweet.content}</div>
-              {tweet.translation && (
-                <div className="mt-4 pt-4 border-t border-dashed border-zinc-800">
-                  <div className="text-blue-400 text-xs font-bold mb-1">{tweet.aiMode}</div>
-                  <div className="text-lg text-zinc-300">{tweet.translation}</div>
-                </div>
-              )}
-              
-              <div className="flex justify-between items-end mt-4">
-                <div className="text-zinc-500 text-sm">{tweet.timestamp}</div>
-                {showQRCode && (
-                  <div className="bg-white p-1 rounded" ref={qrcodeContainer}></div>
-                )}
-              </div>
+        <textarea
+          className="w-full h-32 bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-lg text-white leading-relaxed outline-none resize-none"
+          value={tweet.content}
+          onChange={(e) => setTweet({ ...tweet, content: e.target.value })}
+          placeholder="推文內容..."
+        />
+
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => handleAIAction("translate")} disabled={isLoading} className="bg-zinc-800 hover:bg-zinc-700 text-blue-400 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition">
+            <icons.Globe /> 翻譯
+          </button>
+          <button onClick={() => handleAIAction("explain")} disabled={isLoading} className="bg-zinc-800 hover:bg-zinc-700 text-purple-400 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition">
+            <icons.MessageSquare /> 解析
+          </button>
+          <button onClick={() => handleAIAction("rewrite-funny")} disabled={isLoading} className="bg-zinc-800 hover:bg-zinc-700 text-yellow-400 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition">
+            <icons.Smile /> 幽默改寫
+          </button>
+          <button onClick={() => handleAIAction("rewrite-professional")} disabled={isLoading} className="bg-zinc-800 hover:bg-zinc-700 text-green-400 p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition">
+            <icons.Briefcase /> 專業改寫
+          </button>
+        </div>
+
+        {(tweet.translation || config.displayMode === "translationOnly") && (
+          <div className="relative">
+            <div className="absolute top-2 right-2 text-[10px] bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full border border-blue-500/30">
+              {tweet.aiMode || "AI Output"}
             </div>
-            
-            <button onClick={downloadCard} className="mt-8 w-full max-w-md bg-blue-600 py-4 rounded-full font-bold">下載圖片</button>
+            <textarea
+              className="w-full h-24 bg-zinc-900/50 border border-zinc-700/50 border-dashed rounded-lg p-3 pt-8 text-blue-400 text-sm"
+              value={tweet.translation}
+              onChange={(e) => setTweet({ ...tweet, translation: e.target.value })}
+              placeholder="AI 生成結果..."
+            />
           </div>
         )}
 
-        {activeTab === "settings" && (
-          <div className="p-4 space-y-4">
-            <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
-              <h3 className="font-bold mb-4">API 設定</h3>
-              <input className="w-full bg-black border border-zinc-700 p-3 rounded-xl mb-3 text-sm" type="password" placeholder="Gemini Key" value={config.geminiKey} onChange={e=>{setConfig({...config, geminiKey:e.target.value}); localStorage.setItem("geminiKey", e.target.value);}} />
+        <input
+          type="text"
+          className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm text-white"
+          placeholder="附圖連結 (選填)"
+          value={tweet.image}
+          onChange={(e) => setTweet({ ...tweet, image: e.target.value })}
+        />
+      </div>
+    </div>
+  );
+
+  // Preview Tab Component
+  const Preview = () => (
+    <div className="flex flex-col items-center pt-8 pb-28 px-4 min-h-screen tab-content">
+      <div
+        ref={cardRef}
+        className="w-full max-w-[600px] bg-black text-white p-6 border border-zinc-800"
+        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+      >
+        <div className="flex items-start mb-4">
+          <img
+            src={tweet.avatar}
+            className="w-12 h-12 rounded-full mr-3 object-cover bg-zinc-800"
+            crossOrigin="anonymous"
+            onError={(e) => { e.target.src = DEFAULT_AVATAR; }}
+          />
+          <div className="flex flex-col">
+            <div className="font-bold text-base text-[#e7e9ea] flex items-center gap-1">
+              {tweet.name}
+              <svg viewBox="0 0 24 24" className="w-4 h-4 text-blue-400 fill-current">
+                <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .495.083.965.238 1.4-1.272.65-2.147 2.02-2.147 3.6 0 1.435.71 2.742 1.802 3.527-.245.548-.387 1.168-.387 1.815 0 2.296 1.77 4.157 3.953 4.157.653 0 1.266-.178 1.802-.487.87 1.254 2.296 2.083 3.93 2.083s3.06-.828 3.93-2.083c.536.31 1.15.487 1.802.487 2.183 0 3.953-1.86 3.953-4.157 0-.647-.142-1.267-.387-1.815 1.092-.785 1.802-2.092 1.802-3.527zM15 9.41l-4.5 4.5L9 12.41l1.41-1.41 1.59 1.58 3.09-3.08 1.41 1.42z"/>
+              </svg>
             </div>
+            <div className="text-[#71767b] text-sm">@{tweet.handle}</div>
+          </div>
+        </div>
+
+        <div className="text-[20px] leading-snug mb-4 whitespace-pre-wrap text-[#e7e9ea]">
+          {config.displayMode === "translationOnly" && tweet.translation ? tweet.translation : tweet.content}
+        </div>
+
+        {tweet.image && (
+          <div className="mb-4 rounded-2xl overflow-hidden border border-zinc-800">
+            <img src={tweet.image} className="w-full h-auto block" crossOrigin="anonymous" />
           </div>
         )}
-      </main>
 
-      <nav className="fixed bottom-0 w-full bg-black/80 backdrop-blur-lg border-t border-zinc-800 flex justify-around p-4 pb-10">
-        <button onClick={()=>setActiveTab("edit")} className={activeTab==="edit"?"text-blue-500":"text-zinc-500"}>編輯</button>
-        <button onClick={()=>setActiveTab("preview")} className={activeTab==="preview"?"text-blue-500":"text-zinc-500"}>預覽</button>
-        <button onClick={()=>setActiveTab("settings")} className={activeTab==="settings"?"text-blue-500":"text-zinc-500"}>設定</button>
-      </nav>
+        {config.displayMode === "bilingual" && tweet.translation && (
+          <div className="mt-4 pt-4 border-t border-dashed border-zinc-800">
+            <div className="text-xs font-bold text-blue-400 mb-1">{tweet.aiMode || "✨ AI Output"}</div>
+            <div className="text-[18px] leading-snug text-[#e7e9ea] whitespace-pre-wrap">{tweet.translation}</div>
+          </div>
+        )}
+
+        <div className="py-4 border-b border-zinc-800 text-[#71767b] text-[15px]">{tweet.timestamp}</div>
+
+        <div className="py-4 flex gap-6 text-[14px] text-[#71767b]">
+          {tweet.stats.retweets && <div><span className="font-bold text-[#e7e9ea]">{tweet.stats.retweets}</span> Reposts</div>}
+          {tweet.stats.likes && <div><span className="font-bold text-[#e7e9ea]">{tweet.stats.likes}</span> Likes</div>}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 w-full max-w-[600px] mt-8">
+        <button onClick={downloadImage} className="bg-blue-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-400 transition flex items-center justify-center gap-2">
+          <icons.Download /> 下載圖片 (PNG)
+        </button>
+        <button onClick={shareImage} className="bg-zinc-800 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-zinc-700 transition flex items-center justify-center gap-2 border border-zinc-700">
+          <icons.Share /> 分享圖片
+        </button>
+      </div>
+    </div>
+  );
+
+  // Settings Tab Component
+  const SettingsTab = () => (
+    <div className="p-4 space-y-6 pb-28 tab-content">
+      {/* Install App Section */}
+      {!isInstalled && (
+        <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 p-4 rounded-xl border border-blue-500/30 space-y-3">
+          <h3 className="font-bold text-white text-sm flex items-center gap-2">
+            <icons.Smartphone /> 安裝到主畫面
+          </h3>
+          <p className="text-zinc-400 text-xs">安裝後可獨立運行，支援從其他 App 分享連結</p>
+          <button
+            onClick={() => {
+              const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+              if (isIOS) {
+                document.getElementById("ios-modal").classList.remove("hidden");
+              } else if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+              } else {
+                document.getElementById("ios-modal").classList.remove("hidden");
+              }
+            }}
+            className="w-full bg-white text-blue-600 font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2"
+          >
+            <icons.Download /> 立即安裝
+          </button>
+        </div>
+      )}
+
+      {isInstalled && (
+        <div className="bg-green-900/30 p-4 rounded-xl border border-green-500/30 flex items-center gap-3">
+          <icons.Check />
+          <div>
+            <div className="font-bold text-green-400">已安裝</div>
+            <div className="text-xs text-zinc-400">App 運行於獨立模式</div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-zinc-400">翻譯引擎</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => {
+              setConfig({ ...config, engine: "gemini" });
+              localStorage.setItem("engine", "gemini");
+            }}
+            className={`p-3 rounded-lg border text-sm font-bold ${config.engine === "gemini" ? "bg-blue-500/20 border-blue-500 text-blue-400" : "bg-zinc-900 border-zinc-700 text-zinc-400"}`}
+          >
+            Gemini (AI)
+          </button>
+          <button
+            onClick={() => {
+              setConfig({ ...config, engine: "openrouter" });
+              localStorage.setItem("engine", "openrouter");
+            }}
+            className={`p-3 rounded-lg border text-sm font-bold ${config.engine === "openrouter" ? "bg-blue-500/20 border-blue-500 text-blue-400" : "bg-zinc-900 border-zinc-700 text-zinc-400"}`}
+          >
+            OpenRouter (Free)
+          </button>
+        </div>
+      </div>
+
+      {config.engine === "gemini" && (
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-zinc-400">Gemini API Key</label>
+          <input
+            type="password"
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm text-white focus:border-blue-500 outline-none"
+            placeholder="貼上 API Key"
+            value={config.geminiKey}
+            onChange={(e) => {
+              setConfig({ ...config, geminiKey: e.target.value });
+              localStorage.setItem("geminiKey", e.target.value);
+            }}
+          />
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-xs text-blue-400 hover:underline">
+            取得免費 Key →
+          </a>
+        </div>
+      )}
+
+      {config.engine === "openrouter" && (
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-zinc-400">OpenRouter API Key</label>
+          <input
+            type="password"
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm text-white focus:border-blue-500 outline-none"
+            placeholder="sk-or-..."
+            value={config.openRouterKey}
+            onChange={(e) => {
+              setConfig({ ...config, openRouterKey: e.target.value });
+              localStorage.setItem("openRouterKey", e.target.value);
+            }}
+          />
+          <a href="https://openrouter.ai/keys" target="_blank" className="text-xs text-blue-400 hover:underline">
+            取得 Key →
+          </a>
+          <label className="text-sm font-bold text-zinc-400 mt-4 block">Model</label>
+          <select
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm outline-none text-white"
+            value={config.openRouterModel}
+            onChange={(e) => setConfig({ ...config, openRouterModel: e.target.value })}
+          >
+            <option value="xiaomi/mimo-v2-flash:free">xiaomi/mimo-v2-flash:free</option>
+            <option value="google/gemini-2.0-flash-lite-preview-02-05:free">gemini-2.0-flash-lite:free</option>
+            <option value="deepseek/deepseek-r1:free">deepseek-r1:free</option>
+            <option value="meta-llama/llama-3.3-70b-instruct:free">llama-3.3-70b:free</option>
+          </select>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-zinc-400">顯示模式</label>
+        <select
+          className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm outline-none text-white"
+          value={config.displayMode}
+          onChange={(e) => {
+            setConfig({ ...config, displayMode: e.target.value });
+            localStorage.setItem("displayMode", e.target.value);
+          }}
+        >
+          <option value="bilingual">雙語對照 (原文 + AI)</option>
+          <option value="translationOnly">僅顯示 AI 結果</option>
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-zinc-400">目標語言</label>
+        <select
+          className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm outline-none text-white"
+          value={config.targetLang}
+          onChange={(e) => {
+            setConfig({ ...config, targetLang: e.target.value });
+            localStorage.setItem("targetLang", e.target.value);
+          }}
+        >
+          <option value="ZH-HANT">繁體中文</option>
+          <option value="ZH-HANS">簡體中文</option>
+          <option value="EN">English</option>
+          <option value="JA">日本語</option>
+        </select>
+      </div>
+
+      <div className="pt-4 border-t border-zinc-800 text-center text-zinc-600 text-xs">
+        X Card Maker PWA v2.1<br/>
+        Made with ❤️
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+        </div>
+      )}
+      
+      {activeTab === "edit" && <Editor />}
+      {activeTab === "preview" && <Preview />}
+      {activeTab === "settings" && <SettingsTab />}
+
+      {/* Bottom Tab Bar */}
+      <div className="fixed bottom-0 left-0 w-full bg-zinc-900 border-t border-zinc-800 flex justify-around p-3 pb-6 z-50" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
+        <button onClick={() => setActiveTab("edit")} className={`flex flex-col items-center gap-1 ${activeTab === "edit" ? "text-blue-400" : "text-zinc-500"}`}>
+          <icons.X />
+          <span className="text-xs">編輯</span>
+        </button>
+        <button onClick={() => setActiveTab("preview")} className={`flex flex-col items-center gap-1 ${activeTab === "preview" ? "text-blue-400" : "text-zinc-500"}`}>
+          <icons.Image />
+          <span className="text-xs">預覽</span>
+        </button>
+        <button onClick={() => setActiveTab("settings")} className={`flex flex-col items-center gap-1 ${activeTab === "settings" ? "text-blue-400" : "text-zinc-500"}`}>
+          <icons.Settings />
+          <span className="text-xs">設定</span>
+        </button>
+      </div>
     </div>
   );
 }
 
+// Render App
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
 
-// ✅ 修正：Service Worker 註冊使用絕對路徑
+// PWA Install Handling
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  window.deferredPrompt = e;
+  
+  // Show install banner
+  const banner = document.getElementById('install-banner');
+  if (banner && !localStorage.getItem('installBannerDismissed')) {
+    banner.classList.remove('hidden');
+  }
+});
+
+document.getElementById('install-btn')?.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      document.getElementById('install-banner')?.classList.add('hidden');
+    }
+    deferredPrompt = null;
+  } else {
+    // iOS fallback
+    document.getElementById('ios-modal')?.classList.remove('hidden');
+  }
+});
+
+document.getElementById('install-close')?.addEventListener('click', () => {
+  document.getElementById('install-banner')?.classList.add('hidden');
+  localStorage.setItem('installBannerDismissed', 'true');
+});
+
+document.getElementById('ios-modal-close')?.addEventListener('click', () => {
+  document.getElementById('ios-modal')?.classList.add('hidden');
+});
+
+// ✅ Register Service Worker with correct path for GitHub Pages
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/XPOSTTRANS/sw.js', {
       scope: '/XPOSTTRANS/'
-    }).then(reg => {
-      console.log('✅ Service Worker 註冊成功:', reg.scope);
-    }).catch(err => {
-      console.error('❌ Service Worker 註冊失敗:', err);
-    });
+    })
+      .then(reg => console.log('✅ SW registered:', reg.scope))
+      .catch(err => console.log('❌ SW registration failed:', err));
   });
 }
 </script>
