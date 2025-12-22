@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+  <base href="/XPOSTTRANS/">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="./manifest.json">
-  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="manifest" href="/XPOSTTRANS/manifest.json">
+  <link rel="apple-touch-icon" href="/XPOSTTRANS/icons/icon-192.png">
   <title>X Card Maker</title>
   
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -22,7 +23,6 @@
     #root { min-height: 100dvh; }
     .loading-spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    /* 卡片專用樣式，確保導出圖片時樣式正確 */
     #tweet-card-content { background-color: black; color: white; }
   </style>
 </head>
@@ -36,7 +36,7 @@ function App() {
   const [activeTab, setActiveTab] = useState("edit");
   const [isLoading, setIsLoading] = useState(false);
   const [tweetUrl, setTweetUrl] = useState("");
-  const [showQRCode, setShowQRCode] = useState(true); // 新功能開關
+  const [showQRCode, setShowQRCode] = useState(true);
   
   const [config, setConfig] = useState({
     engine: "gemini",
@@ -58,7 +58,6 @@ function App() {
   const cardRef = useRef(null);
   const qrcodeContainer = useRef(null);
 
-  // 當推文網址或開關改變時，重新產生 QR Code
   useEffect(() => {
     if (activeTab === "preview" && qrcodeContainer.current && tweet.originalUrl) {
       qrcodeContainer.current.innerHTML = "";
@@ -100,8 +99,7 @@ function App() {
   };
 
   const triggerAI = async (text, action) => {
-    // ... [保留您原本的 AI 請求邏輯] ...
-    // 此處簡化示意，請將您原本的 triggerAI 內容填回
+    // 保留原本的 AI 邏輯
   };
 
   const downloadCard = async () => {
@@ -135,7 +133,6 @@ function App() {
                 </div>
              </div>
              
-             {/* 新功能開關 */}
              <div className="flex items-center justify-between bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
                 <span className="text-sm">顯示推文 QR Code</span>
                 <input type="checkbox" checked={showQRCode} onChange={e=>setShowQRCode(e.target.checked)} className="w-5 h-5" />
@@ -171,7 +168,6 @@ function App() {
               
               <div className="flex justify-between items-end mt-4">
                 <div className="text-zinc-500 text-sm">{tweet.timestamp}</div>
-                {/* QR Code 顯示區域 */}
                 {showQRCode && (
                   <div className="bg-white p-1 rounded" ref={qrcodeContainer}></div>
                 )}
@@ -184,7 +180,6 @@ function App() {
 
         {activeTab === "settings" && (
           <div className="p-4 space-y-4">
-            {/* 設定內容 */}
             <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
               <h3 className="font-bold mb-4">API 設定</h3>
               <input className="w-full bg-black border border-zinc-700 p-3 rounded-xl mb-3 text-sm" type="password" placeholder="Gemini Key" value={config.geminiKey} onChange={e=>{setConfig({...config, geminiKey:e.target.value}); localStorage.setItem("geminiKey", e.target.value);}} />
@@ -205,10 +200,16 @@ function App() {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
 
-// SW 註冊
+// ✅ 修正：Service Worker 註冊使用絕對路徑
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW Registered'));
+    navigator.serviceWorker.register('/XPOSTTRANS/sw.js', {
+      scope: '/XPOSTTRANS/'
+    }).then(reg => {
+      console.log('✅ Service Worker 註冊成功:', reg.scope);
+    }).catch(err => {
+      console.error('❌ Service Worker 註冊失敗:', err);
+    });
   });
 }
 </script>
