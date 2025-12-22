@@ -1,4 +1,4 @@
-const CACHE_NAME = 'x-card-maker-v2.5'; // 提升版本號強迫更新
+const CACHE_NAME = 'x-card-maker-v3.0'; // 提升版本
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -19,12 +19,15 @@ const CDN_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      cache.addAll(STATIC_ASSETS).catch(err => console.log('Local cache error:', err));
-      return Promise.all(
+      // 1. 快取本地資源
+      cache.addAll(STATIC_ASSETS).catch(err => console.log('Local assets cache skip:', err));
+      
+      // 2. 逐一快取 CDN 資源，避免其中一個失敗導致全部失敗
+      return Promise.allSettled(
         CDN_ASSETS.map(url => 
-          fetch(url, { mode: 'cors', credentials: 'omit' })
-            .then(response => { if (response.ok) return cache.put(url, response); })
-            .catch(err => console.log('CDN cache error for', url, err))
+          fetch(url, { mode: 'no-cors' }) // 使用 no-cors 解決部分 CDN 的限制
+            .then(response => cache.put(url, response))
+            .catch(err => console.log('CDN fetch failed (skipped):', url))
         )
       );
     })
@@ -34,50 +37,31 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) return caches.delete(cacheName);
-        })
-      );
-    })
+    caches.keys().then((keys) => Promise.all(
+      keys.map(key => key !== CACHE_NAME ? caches.delete(key) : null)
+    ))
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
   if (request.method !== 'GET') return;
-  
-  if (url.pathname.includes('/api/') || 
-      url.hostname.includes('generativelanguage.googleapis.com') ||
-      url.hostname.includes('openrouter.ai') ||
-      url.hostname.includes('publish.twitter.com') ||
-      url.hostname.includes('unavatar.io') ||
-      url.hostname.includes('allorigins') ||
-      url.hostname.includes('codetabs') ||
-      url.hostname.includes('corsproxy')) return;
+
+  const url = new URL(request.url);
+  // 跳過 API 與外部請求
+  if (url.hostname.includes('googleapis') || url.hostname.includes('openrouter') || url.hostname.includes('twitter')) return;
 
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-      return fetch(request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200) return networkResponse;
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          if (url.origin === location.origin || CDN_ASSETS.some(cdn => request.url.startsWith(cdn.split('/')[0] + '//' + cdn.split('/')[2]))) {
-            cache.put(request, responseToCache);
-          }
-        });
-        return networkResponse;
+    caches.match(request).then((res) => {
+      return res || fetch(request).then(networkRes => {
+        if (!networkRes || networkRes.status !== 200) return networkRes;
+        const cacheRes = networkRes.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, cacheRes));
+        return networkRes;
       }).catch(() => {
         if (request.mode === 'navigate') return caches.match('./index.html');
       });
     })
   );
-});
-
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
