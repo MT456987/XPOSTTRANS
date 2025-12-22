@@ -1,10 +1,10 @@
-const CACHE_NAME = 'x-card-maker-v2.0';
+const CACHE_NAME = 'x-card-maker-v2.1'; // 提升版本號以強迫瀏覽器更新
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  './',
+  './index.html',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 const CDN_ASSETS = [
@@ -21,9 +21,10 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('Caching static assets');
-      // Cache local assets
+      // 使用相對路徑快取本地資源
       cache.addAll(STATIC_ASSETS).catch(err => console.log('Local cache error:', err));
-      // Cache CDN assets with no-cors mode for cross-origin
+      
+      // 快取 CDN 資源
       return Promise.all(
         CDN_ASSETS.map(url => 
           fetch(url, { mode: 'cors', credentials: 'omit' })
@@ -62,12 +63,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests
+  // 跳過非 GET 請求
   if (request.method !== 'GET') {
     return;
   }
 
-  // Skip API calls (they should always go to network)
+  // 跳過 API 呼叫（永遠走網路）
   if (url.pathname.includes('/api/') || 
       url.hostname.includes('generativelanguage.googleapis.com') ||
       url.hostname.includes('openrouter.ai') ||
@@ -82,24 +83,19 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Return cached response
         return cachedResponse;
       }
 
-      // Fetch from network
       return fetch(request)
         .then((networkResponse) => {
-          // Don't cache if not a valid response
           if (!networkResponse || networkResponse.status !== 200) {
             return networkResponse;
           }
 
-          // Clone the response
           const responseToCache = networkResponse.clone();
 
-          // Cache the new response
           caches.open(CACHE_NAME).then((cache) => {
-            // Only cache same-origin and CDN requests
+            // 判斷是否為同源資源或指定的 CDN 資源
             if (url.origin === location.origin || CDN_ASSETS.some(cdn => request.url.startsWith(cdn.split('/')[0] + '//' + cdn.split('/')[2]))) {
               cache.put(request, responseToCache);
             }
@@ -108,9 +104,9 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // Offline fallback for navigation requests
+          // 關鍵修正：離線導航時回退至當前目錄下的 index.html
           if (request.mode === 'navigate') {
-            return caches.match('/index.html');
+            return caches.match('./index.html');
           }
           return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
         });
@@ -122,24 +118,5 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  }
-});
-
-// Background sync for failed requests (optional enhancement)
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-tweets') {
-    console.log('Background sync triggered');
-  }
-});
-
-// Push notification handling (for future use)
-self.addEventListener('push', (event) => {
-  if (event.data) {
-    const data = event.data.json();
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-96.png'
-    });
   }
 });
