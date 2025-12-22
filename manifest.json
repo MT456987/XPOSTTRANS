@@ -67,7 +67,7 @@
     }
   ],
   "share_target": {
-    "action": "/",
+    "action": "./index.html",
     "method": "GET",
     "params": {
       "title": "title",
@@ -80,7 +80,7 @@
       "name": "新增卡片",
       "short_name": "新增",
       "description": "建立新的推文卡片",
-      "url": "/?action=new",
+      "url": "./index.html?action=new",
       "icons": [
         {
           "src": "icons/icon-96.png",
