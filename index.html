@@ -20,9 +20,6 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/XPOSTTRANS/icons/icon-180.png">
   <link rel="apple-touch-icon" sizes="167x167" href="/XPOSTTRANS/icons/icon-167.png">
   
-  <!-- Splash Screens for iOS -->
-  <meta name="apple-mobile-web-app-title" content="X Card">
-  
   <title>X Card Maker</title>
   
   <!-- External Dependencies -->
@@ -39,14 +36,12 @@
     body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
     #root { min-height: 100vh; min-height: 100dvh; }
     
-    /* Install Banner Styles */
     .install-banner { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1d4ed8, #7c3aed); padding: 16px 24px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px); animation: slideUp 0.4s ease-out; }
     .install-banner.hidden { display: none; }
     @keyframes slideUp { from { transform: translateX(-50%) translateY(100px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
     .install-banner button { background: white; color: #1d4ed8; font-weight: 700; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; white-space: nowrap; }
     .install-banner .close { background: transparent; color: white; padding: 8px; opacity: 0.7; }
     
-    /* iOS Install Instructions Modal */
     .ios-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; animation: fadeIn 0.3s ease-out; }
     .ios-modal.hidden { display: none; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -58,20 +53,28 @@
     .ios-modal .step-text { font-size: 14px; }
     .ios-modal .close-btn { margin-top: 16px; background: #3b82f6; color: white; border: none; padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; width: 100%; }
     
-    /* Loading overlay */
     .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
     .loading-spinner { width: 48px; height: 48px; border: 4px solid #333; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     
-    /* Tab transitions */
     .tab-content { animation: fadeSlide 0.2s ease-out; }
     @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* Image upload area */
+    .upload-area { border: 2px dashed #52525b; border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    .upload-area:hover { border-color: #3b82f6; background: #18181b; }
+    .upload-area.dragover { border-color: #3b82f6; background: #1e293b; }
+    
+    /* Image grid */
+    .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .image-item { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; border: 2px solid #3f3f46; }
+    .image-item img { width: 100%; height: 100%; object-fit: cover; }
+    .image-item .remove-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.8); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   </style>
 </head>
 <body>
   <div id="root"></div>
   
-  <!-- Install Banner (injected by JS) -->
   <div id="install-banner" class="install-banner hidden">
     <div style="flex:1">
       <div style="font-weight:700;font-size:15px;">📲 安裝 X Card Maker</div>
@@ -81,14 +84,13 @@
     <button class="close" id="install-close">✕</button>
   </div>
   
-  <!-- iOS Install Modal -->
   <div id="ios-modal" class="ios-modal hidden">
     <div class="ios-modal-content">
       <h3>📲 安裝到主畫面</h3>
       <p>在 Safari 瀏覽器中，請按以下步驟安裝此 App：</p>
       <div class="step">
         <span class="step-num">1</span>
-        <span class="step-text">點擊底部 <strong>分享按鈕</strong> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
+        <span class="step-text">點擊底部 <strong>分享按鈕</strong></span>
       </div>
       <div class="step">
         <span class="step-num">2</span>
@@ -105,21 +107,21 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
-// Icons from Lucide
 const icons = {
-  X: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
-  Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>,
-  Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
-  Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-  Share: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
-  RefreshCw: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>,
-  Clipboard: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>,
-  Globe: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
-  MessageSquare: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  Smile: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>,
-  Briefcase: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
-  Smartphone: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>,
-  Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
+  X: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+  Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>,
+  Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+  Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  Share: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
+  RefreshCw: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>,
+  Clipboard: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>,
+  Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  Globe: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+  MessageSquare: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  Smile: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>,
+  Briefcase: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+  Smartphone: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>,
+  Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6 9 17l-5-5"/></svg>,
 };
 
 const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23333'%3E%3Crect width='24' height='24' fill='%23333'/%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23555'/%3E%3C/svg%3E";
@@ -134,11 +136,12 @@ function App() {
     engine: "gemini",
     targetLang: "ZH-HANT",
     geminiKey: "",
-    geminiModel: "gemini-2.0-flash",
+    geminiModel: "gemini-2.0-flash-exp",
     openRouterKey: "",
     openRouterModel: "xiaomi/mimo-v2-flash:free",
     displayMode: "bilingual",
-    autoTranslate: false
+    autoTranslate: false,
+    autoFetchImages: true // 新增：自動抓取圖片
   });
   
   const [tweet, setTweet] = useState({
@@ -148,32 +151,32 @@ function App() {
     content: "Paste a link above to auto-fill, or edit manually.\n\n貼上連結自動抓取，或手動編輯此卡片。",
     timestamp: new Date().toLocaleString(),
     stats: { replies: "12", retweets: "34", likes: "56", views: "1.2K" },
-    image: "",
+    images: [], // 改為多圖支援
     translation: "",
     aiMode: ""
   });
   
   const cardRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  // Load saved config from localStorage
+  // Load saved config
   useEffect(() => {
     const savedConfig = {};
-    ["geminiKey", "openRouterKey", "autoTranslate", "engine", "targetLang", "displayMode"].forEach(key => {
+    ["geminiKey", "openRouterKey", "autoTranslate", "engine", "targetLang", "displayMode", "autoFetchImages"].forEach(key => {
       const val = localStorage.getItem(key);
       if (val !== null) {
-        savedConfig[key] = key === "autoTranslate" ? val === "true" : val;
+        savedConfig[key] = (key === "autoTranslate" || key === "autoFetchImages") ? val === "true" : val;
       }
     });
     setConfig(prev => ({ ...prev, ...savedConfig }));
     
-    // Check if running in standalone mode (installed)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
                          window.navigator.standalone || 
                          document.referrer.includes('android-app://');
     setIsInstalled(isStandalone);
   }, []);
 
-  // Handle shared URL from other apps
+  // Handle shared URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sharedUrl = params.get("q") || params.get("url") || params.get("text");
@@ -211,67 +214,125 @@ function App() {
     } catch (e) {}
 
     try {
-      const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(urlToFetch)}`;
-      let oembedData = null;
+      // 🎉 使用 FixTweet API (最佳方案)
+      let fxData = null;
+      let extractedImages = [];
+      let textContent = "";
+      let authorName = "";
+      let avatarUrl = DEFAULT_AVATAR;
       
-      const tryFetch = async (u) => {
-        const res = await fetch(u);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      };
-
       try {
-        oembedData = await Promise.any([
-          tryFetch(`https://api.allorigins.win/get?url=${encodeURIComponent(oembedUrl)}`).then(d => d.contents ? JSON.parse(d.contents) : Promise.reject()),
-          tryFetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(oembedUrl)}`),
-          tryFetch(`https://corsproxy.io/?${encodeURIComponent(oembedUrl)}`)
-        ]);
-      } catch (e) {
-        console.warn("All content proxies failed");
-      }
-
-      let avatarBase64 = DEFAULT_AVATAR;
-      try {
-        const avatarUrl = `https://unavatar.io/twitter/${extractedHandle}`;
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(avatarUrl)}`;
-        const res = await fetch(proxyUrl);
-        if (res.ok) {
-          const blob = await res.blob();
-          avatarBase64 = await new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
-          });
-        }
-      } catch (imgError) {
-        avatarBase64 = `https://unavatar.io/twitter/${extractedHandle}`;
-      }
-
-      if (oembedData) {
-        const div = document.createElement("div");
-        div.innerHTML = oembedData.html;
-        const textContent = div.querySelector("p")?.innerText || "";
+        // 將 x.com 或 twitter.com 替換為 api.fxtwitter.com
+        const fxApiUrl = urlToFetch
+          .replace("x.com", "api.fxtwitter.com")
+          .replace("twitter.com", "api.fxtwitter.com");
         
-        const newTweetState = {
-          ...tweet,
-          name: oembedData.author_name || tweet.name,
-          handle: extractedHandle,
-          content: textContent || tweet.content,
-          avatar: avatarBase64,
-          timestamp: new Date().toLocaleString()
+        console.log("🔄 使用 FixTweet API:", fxApiUrl);
+        
+        const fxResponse = await fetch(fxApiUrl);
+        if (fxResponse.ok) {
+          fxData = await fxResponse.json();
+          console.log("✅ FixTweet 資料:", fxData);
+          
+          if (fxData.code === 200 && fxData.tweet) {
+            // 提取推文內容
+            textContent = fxData.tweet.text || "";
+            
+            // 提取作者資訊
+            if (fxData.tweet.author) {
+              authorName = fxData.tweet.author.name || "";
+              extractedHandle = fxData.tweet.author.screen_name || extractedHandle;
+              avatarUrl = fxData.tweet.author.avatar_url || DEFAULT_AVATAR;
+            }
+            
+            // 提取圖片 (如果開啟自動抓取)
+            if (config.autoFetchImages && fxData.tweet.media) {
+              // 優先使用 photos，如果沒有則使用 all
+              if (fxData.tweet.media.photos && fxData.tweet.media.photos.length > 0) {
+                extractedImages = fxData.tweet.media.photos.map(photo => photo.url);
+              } else if (fxData.tweet.media.all && fxData.tweet.media.all.length > 0) {
+                extractedImages = fxData.tweet.media.all
+                  .filter(m => m.type === 'photo')
+                  .map(m => m.url);
+              }
+              console.log("📸 提取到圖片:", extractedImages.length, "張");
+            }
+          }
+        }
+      } catch (fxError) {
+        console.warn("⚠️ FixTweet API 失敗，嘗試備用方案:", fxError);
+      }
+      
+      // 如果 FixTweet 沒有獲取到內容，使用 oEmbed 作為備用
+      if (!textContent) {
+        console.log("🔄 使用 oEmbed 備用方案");
+        const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(urlToFetch)}`;
+        let oembedData = null;
+        
+        const tryFetch = async (u) => {
+          const res = await fetch(u);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
         };
-        setTweet(newTweetState);
-        
-        if (config.autoTranslate && textContent) {
-          triggerAI(textContent, "translate");
-        } else {
-          setActiveTab("preview");
+
+        try {
+          oembedData = await Promise.any([
+            tryFetch(`https://api.allorigins.win/get?url=${encodeURIComponent(oembedUrl)}`).then(d => d.contents ? JSON.parse(d.contents) : Promise.reject()),
+            tryFetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(oembedUrl)}`),
+            tryFetch(`https://corsproxy.io/?${encodeURIComponent(oembedUrl)}`)
+          ]);
+          
+          if (oembedData) {
+            const div = document.createElement("div");
+            div.innerHTML = oembedData.html;
+            textContent = div.querySelector("p")?.innerText || textContent;
+            authorName = oembedData.author_name || authorName;
+          }
+        } catch (e) {
+          console.warn("⚠️ oEmbed 也失敗了");
         }
-      } else {
-        throw new Error("無法取得推文資料");
       }
+
+      // 如果還沒有頭像，嘗試從 unavatar 獲取
+      if (avatarUrl === DEFAULT_AVATAR) {
+        try {
+          const unavatarUrl = `https://unavatar.io/twitter/${extractedHandle}`;
+          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(unavatarUrl)}`;
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            avatarUrl = await new Promise(resolve => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch (imgError) {
+          avatarUrl = `https://unavatar.io/twitter/${extractedHandle}`;
+        }
+      }
+
+      // 更新推文狀態
+      const newTweetState = {
+        ...tweet,
+        name: authorName || tweet.name,
+        handle: extractedHandle,
+        content: textContent || "無法自動抓取內容，請手動貼上。",
+        avatar: avatarUrl,
+        images: extractedImages,
+        timestamp: new Date().toLocaleString()
+      };
+      setTweet(newTweetState);
+      
+      // 自動翻譯
+      if (config.autoTranslate && textContent) {
+        triggerAI(textContent, "translate");
+      } else {
+        setActiveTab("preview");
+      }
+      
     } catch (e) {
-      console.error(e);
+      console.error("❌ 所有抓取方法都失敗了:", e);
       setTweet(prev => ({
         ...prev,
         handle: extractedHandle,
@@ -307,6 +368,70 @@ function App() {
     } catch (err) {
       alert("無法讀取剪貼簿，請手動貼上。");
     }
+  };
+
+  // 圖片處理函數
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setTweet(prev => ({
+            ...prev,
+            images: [...prev.images, event.target.result]
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const handleImageUrlAdd = () => {
+    const url = prompt("請輸入圖片 URL:");
+    if (url && url.trim()) {
+      setTweet(prev => ({
+        ...prev,
+        images: [...prev.images, url.trim()]
+      }));
+    }
+  };
+
+  const removeImage = (index) => {
+    setTweet(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('dragover');
+    
+    const files = Array.from(e.dataTransfer.files);
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setTweet(prev => ({
+            ...prev,
+            images: [...prev.images, event.target.result]
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('dragover');
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover');
   };
 
   const triggerAI = async (textContent, action) => {
@@ -474,7 +599,6 @@ function App() {
               text: `@${tweet.handle}`
             });
           } catch (e) {
-            // User cancelled or error
             downloadImage();
           }
         } else {
@@ -510,7 +634,7 @@ function App() {
         <div className="flex gap-2">
           <input
             type="text"
-            placeholder="貼上連結..."
+            placeholder="貼上推文連結..."
             className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
             value={tweetUrl}
             onChange={(e) => setTweetUrl(e.target.value)}
@@ -592,13 +716,55 @@ function App() {
           </div>
         )}
 
-        <input
-          type="text"
-          className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm text-white"
-          placeholder="附圖連結 (選填)"
-          value={tweet.image}
-          onChange={(e) => setTweet({ ...tweet, image: e.target.value })}
-        />
+        {/* 新增：圖片上傳區域 */}
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-zinc-400">📸 推文圖片</label>
+          
+          {tweet.images.length > 0 && (
+            <div className="image-grid mb-3">
+              {tweet.images.map((img, index) => (
+                <div key={index} className="image-item">
+                  <img src={img} alt={`Image ${index + 1}`} crossOrigin="anonymous" />
+                  <button
+                    className="remove-btn"
+                    onClick={() => removeImage(index)}
+                    title="移除"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div
+            className="upload-area"
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <icons.Upload />
+            <p className="text-zinc-400 text-sm mt-2">點擊上傳或拖放圖片</p>
+            <p className="text-zinc-600 text-xs mt-1">支援 JPG, PNG, GIF, WebP</p>
+          </div>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          
+          <button
+            onClick={handleImageUrlAdd}
+            className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-2 rounded-lg text-xs font-bold transition"
+          >
+            + 添加圖片 URL
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -633,9 +799,27 @@ function App() {
           {config.displayMode === "translationOnly" && tweet.translation ? tweet.translation : tweet.content}
         </div>
 
-        {tweet.image && (
-          <div className="mb-4 rounded-2xl overflow-hidden border border-zinc-800">
-            <img src={tweet.image} className="w-full h-auto block" crossOrigin="anonymous" />
+        {/* 新增：多圖顯示 */}
+        {tweet.images.length > 0 && (
+          <div className={`mb-4 rounded-2xl overflow-hidden border border-zinc-800 ${
+            tweet.images.length === 1 ? '' : 
+            tweet.images.length === 2 ? 'grid grid-cols-2 gap-0.5' :
+            tweet.images.length === 3 ? 'grid grid-cols-2 gap-0.5' :
+            'grid grid-cols-2 gap-0.5'
+          }`}>
+            {tweet.images.map((img, index) => (
+              <div key={index} className={tweet.images.length === 3 && index === 0 ? 'col-span-2' : ''}>
+                <img 
+                  src={img} 
+                  className="w-full h-auto block object-cover" 
+                  crossOrigin="anonymous"
+                  style={{
+                    aspectRatio: tweet.images.length === 1 ? 'auto' : '1/1',
+                    objectFit: tweet.images.length === 1 ? 'contain' : 'cover'
+                  }}
+                />
+              </div>
+            ))}
           </div>
         )}
 
@@ -668,7 +852,6 @@ function App() {
   // Settings Tab Component
   const SettingsTab = () => (
     <div className="p-4 space-y-6 pb-28 tab-content">
-      {/* Install App Section */}
       {!isInstalled && (
         <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 p-4 rounded-xl border border-blue-500/30 space-y-3">
           <h3 className="font-bold text-white text-sm flex items-center gap-2">
@@ -808,9 +991,29 @@ function App() {
         </select>
       </div>
 
+      {/* 新增：圖片自動抓取選項 */}
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-zinc-400 flex items-center justify-between">
+          <span>圖片設定</span>
+          <label className="text-xs text-zinc-500 flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.autoFetchImages}
+              onChange={(e) => {
+                setConfig({ ...config, autoFetchImages: e.target.checked });
+                localStorage.setItem("autoFetchImages", e.target.checked);
+              }}
+              className="accent-blue-500"
+            />
+            自動抓取圖片
+          </label>
+        </label>
+        <p className="text-xs text-zinc-600">開啟後會嘗試從推文中自動提取圖片</p>
+      </div>
+
       <div className="pt-4 border-t border-zinc-800 text-center text-zinc-600 text-xs">
-        X Card Maker PWA v2.1<br/>
-        Made with ❤️
+        X Card Maker PWA v2.3 FixTweet<br/>
+        Made with ❤️ • 真正的自動圖片抓取
       </div>
     </div>
   );
@@ -827,7 +1030,6 @@ function App() {
       {activeTab === "preview" && <Preview />}
       {activeTab === "settings" && <SettingsTab />}
 
-      {/* Bottom Tab Bar */}
       <div className="fixed bottom-0 left-0 w-full bg-zinc-900 border-t border-zinc-800 flex justify-around p-3 pb-6 z-50" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
         <button onClick={() => setActiveTab("edit")} className={`flex flex-col items-center gap-1 ${activeTab === "edit" ? "text-blue-400" : "text-zinc-500"}`}>
           <icons.X />
@@ -846,7 +1048,6 @@ function App() {
   );
 }
 
-// Render App
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
 
@@ -858,7 +1059,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
   deferredPrompt = e;
   window.deferredPrompt = e;
   
-  // Show install banner
   const banner = document.getElementById('install-banner');
   if (banner && !localStorage.getItem('installBannerDismissed')) {
     banner.classList.remove('hidden');
@@ -874,7 +1074,6 @@ document.getElementById('install-btn')?.addEventListener('click', async () => {
     }
     deferredPrompt = null;
   } else {
-    // iOS fallback
     document.getElementById('ios-modal')?.classList.remove('hidden');
   }
 });
@@ -888,7 +1087,6 @@ document.getElementById('ios-modal-close')?.addEventListener('click', () => {
   document.getElementById('ios-modal')?.classList.add('hidden');
 });
 
-// ✅ Register Service Worker with correct path for GitHub Pages
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/XPOSTTRANS/sw.js', {
